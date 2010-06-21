@@ -85,7 +85,7 @@ module TaskTempest
       task.spawn(storm)
       tasks << task
       logger.info task.format_log("started", true)
-      task.logger.info task.format_log("arguments #{args.inspect}")
+      task.logger.info "arguments #{args.inspect}"
     rescue Exception => e
       raise
     ensure

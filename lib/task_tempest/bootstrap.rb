@@ -16,7 +16,6 @@ module TaskTempest
       def bootstrap
         init_logging
         with_error_handling(:halt_on_error) do
-          init_load_path
           init_thread_pool
           before_initialize
           init_tasks
@@ -37,15 +36,9 @@ module TaskTempest
         @task_logger.level = settings.log_level
       end
       
-      def init_load_path
-        $LOAD_PATH.delete(".")
-        $LOAD_PATH.delete(settings.root_dir)
-        $LOAD_PATH.push(settings.root_dir)
-      end
-      
       def init_tasks
         logger.info "initializing tasks"
-        Dir.glob("#{settings.task_dir}/*").each do |file_path|
+        Dir.glob("#{settings.task_dir}/*.rb").each do |file_path|
           logger.info file_path
           require file_path
         end

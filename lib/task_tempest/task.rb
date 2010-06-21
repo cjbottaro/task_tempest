@@ -39,8 +39,8 @@ module TaskTempest
     end
     
     def format_log(message, duration = false)
-      s = "[#{id} #{self.class}] #{message}"
-      s += " #{execution.duration}" if duration
+      s = "{#{id}} <#{self.class}> #{message}"
+      s += " #{execution.duration}" if duration and execution.finished?
       s
     end
     
