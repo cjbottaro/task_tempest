@@ -5,8 +5,8 @@ begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
     gem.name = "task_tempest"
-    gem.summary = %Q{TODO: one-line summary of your gem}
-    gem.description = %Q{TODO: longer description of your gem}
+    gem.summary = %Q{Asychronous job processor framework.}
+    gem.description = %Q{Easily create asychronous job processors.}
     gem.email = "cjbottaro@alumni.cs.utexas.edu"
     gem.homepage = "http://github.com/cjbottaro/task_tempest"
     gem.authors = ["Christopher J. Bottaro"]
