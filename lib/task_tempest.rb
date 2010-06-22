@@ -7,7 +7,7 @@ module TaskTempest
   LogFormatter = Proc.new do |severity, time, progname, message|
     message = message.call if message.respond_to?(:call)
     time = time.strftime("%Y/%m/%d %H:%M:%S")
-    sprintf("%-7s %s %s\n", "[#{severity}]", time, message)
+    sprintf("%s [%s] %s\n", time, severity, message)
   end
   
 end
