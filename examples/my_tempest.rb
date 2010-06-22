@@ -1,21 +1,41 @@
 require "rubygems"
 require "task_tempest"
+require "memcache"
 require "system_timer"
-require "yaml"
 
 require "tasks/greeter"
+
+class MemcachedQueue
+  
+  def initialize(name)
+    @name = name
+    @cache = MemCache.new "localhost:11211"
+  end
+  
+  def push(item)
+    queue = @cache.fetch(@name){ [] }
+    queue.push(item)
+    @cache.set(@name, queue)
+  end
+  
+  def pop
+    queue = @cache.fetch(@name){ [] }
+    item = queue.pop
+    @cache.set(@name, queue)
+    item
+  end
+  
+end
 
 # To run this example, open two shells and navagate to the examples directory (i.e. the
 # the directory containing this file).  In the first shell type:
 #   ruby my_tempest.rb run
 # In the second shell, invoke irb and type the following commands:
 #   require "my_tempest"
-#   MyTempest.submit(Greeter.new("Christopher", "hello"))
+#   MyTempest.submit(Greeter.new("Christopher", "Hello"))
 #   MyTempest.submit([nil, "Greeter", "Justin", "What up"])
 # Check the the first shell (and the logs dir) for output.
-# Note this example requires the SystemTimer, daemons and right_aws gems.  It also requires
-# you to put in your own access_key and secret_key for your Amazon web services account in
-# the queue callback.
+# Note this example requires the SystemTimer, daemons and memcache-client gems.
 class MyTempest < TaskTempest::Engine
   
   # This dictates what the logs will be named.
@@ -44,15 +64,7 @@ class MyTempest < TaskTempest::Engine
   
   # Define the queue.
   queue do |logger|
-    require "right_aws"
-    access_key = 'access' # Change this to your access key.
-    secret_key = 'secret' # Change this to your secret key.
-    params = { :protocol => 'http',
-               :port => 80,
-               :multi_thread => false,
-               :logger => logger }
-    sqs = RightAws::SqsGen2.new(access_key, secret_key, params)
-    sqs.queue("my_tempest")
+    MemcachedQueue.new("my_tempest_queue")
   end
   
   # Define how to enqueue messages.  This is used by MyTempest.submit.
@@ -60,14 +72,13 @@ class MyTempest < TaskTempest::Engine
   # *args are passed through from MyTempest.submit.
   enqueue do |queue, message, logger, *args|
     logger.debug "enqueue #{message.inspect}"
-    queue.push(YAML.dump(message))
+    queue.push(message)
   end
   
   # Define how to dequeue messages.  It must return either
   # nil or a tuple: [task_id, task_class_name, *task_arguments]
   dequeue do |queue, logger|
-    if (item = queue.pop)
-      message = YAML.load(item.body)
+    if (message = queue.pop)
       logger.debug "dequeue #{message.inspect}"
       message
     else

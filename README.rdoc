@@ -123,6 +123,10 @@ The +args+ argument is passed through via <tt>TaskTempest::Engine.submit</tt>.  
   
 Then +args+ would be <tt>["one", "two"]</tt>.  This is useful if you are using a priority queue and you want to submit your task with a given priority.
 
+== Complete example
+
+See the +examples+ directory.
+
 == Copyright
 
 Copyright (c) 2010 Christopher J. Bottaro. See LICENSE for details.
