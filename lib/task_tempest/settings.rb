@@ -12,6 +12,7 @@ module TaskTempest
       :no_message_sleep => 1,
       :task_timeout => nil,
       :shutdown_timeout => 5, # 5 seconds
+      :dequeue_timeout => 2, # 2 seconds
       :timeout_method => Timeout.method(:timeout),
       :root_dir => File.expand_path(Dir.pwd),
       :log_dir => File.expand_path(Dir.pwd),
@@ -66,6 +67,10 @@ module TaskTempest
         settings.no_thread_sleep = value
       end
       
+      def root_dir(path)
+        settings.root_dir = File.expand_path(path)
+      end
+      
       def log_dir(value)
         settings.log_dir = File.expand_path(value)
       end
@@ -76,6 +81,10 @@ module TaskTempest
       
       def timeout_method(value)
         settings.timeout_method = value
+      end
+      
+      def dequeue_timeout(seconds)
+        settings.dequeue_timeout = value.to_f
       end
       
       def task_timeout(value)

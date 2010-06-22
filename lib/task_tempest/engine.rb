@@ -58,11 +58,29 @@ module TaskTempest
     end
     
     def receive_message
-      @message ||= begin
-        logger.debug "receiving message"
-        settings.dequeue.call(queue, logger)
+      logger.debug "receiving message"
+      
+      if message
+        logger.debug "already have message"
+        return
       end
       
+      # Why do we do it this way?  Because of badly behaved dequeue
+      # definitions.  For example, right_aws rescues any exception
+      # when making a request to Amazon.  Thus if we try to shutdown
+      # our tempest, right_aws could potentially swallow that exception.
+      
+      @receive_storm ||= ThreadStorm.new :size => 1,
+                                         :timeout_method => settings.timeout_method,
+                                         :timeout => settings.dequeue_timeout
+      
+      execution = @receive_storm.execute{ settings.dequeue.call(queue, logger) }
+      with_error_handling do
+        @message = execution.value
+        logger.warn "dequeue timed out" if execution.timed_out?
+      end
+      @receive_storm.clear_executions # Prevent memory leak.
+        
       if message.nil?
         logger.debug "no available messages, sleeping for #{settings.no_message_sleep}"
         sleep(settings.no_message_sleep)
