@@ -9,7 +9,7 @@ module TaskTempest
     %w[debug info warn error fatal].each do |level|
       class_eval <<-STR
         def #{level}(msg)
-          @logger.#{level} "[\#\{@task.id\} \#\{@task.class\}] \#\{msg\}"
+          @logger.#{level} @task.format_log(msg)
         end
       STR
     end

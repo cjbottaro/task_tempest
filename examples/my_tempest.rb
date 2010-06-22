@@ -1,8 +1,11 @@
+$LOAD_PATH << "../lib"
+
 require "rubygems"
 require "task_tempest"
 require "memcache"
 require "system_timer"
 
+require "tasks/evaler"
 require "tasks/greeter"
 
 class MemcachedQueue
