@@ -51,3 +51,22 @@ Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_files.include('README*')
   rdoc.rdoc_files.include('lib/**/*.rb')
 end
+
+namespace :example do
+  
+  desc "Run the example."
+  task :run do
+    `ruby examples/my_tempest.rb run`
+  end
+  
+  desc "Fill the example queue."
+  task :fill do
+    require "examples/my_tempest"
+    while true
+      r = rand
+      sleep(r)
+      MyTempest.submit([nil, "Evaler", %{sleep(#{r})}])
+    end
+  end
+  
+end

@@ -5,22 +5,27 @@ module TaskTempest
   module Settings
     
     DEFAULTS = {
-      :process_name => "task_tempest",
-      :log_level => Logger::DEBUG,
+      # Basic settings
       :threads => 10,
-      :no_thread_sleep => 1,
+      :log_level => Logger::INFO,
+      :queue => nil,
+      :bookkeeping_interval => 10*60, # 10 minutes
+      
+      # Delay settings
       :no_message_sleep => 1,
+      :pulse_delay => 0.25,
+      
+      # Timeout settings
+      :timeout_method => Timeout.method(:timeout),
       :task_timeout => nil,
       :shutdown_timeout => 5, # 5 seconds
-      :dequeue_timeout => 2, # 2 seconds
-      :timeout_method => Timeout.method(:timeout),
+      
+      # Directory settings
       :root_dir => File.expand_path(Dir.pwd),
       :log_dir => File.expand_path(Dir.pwd),
       :task_dir => File.expand_path(Dir.pwd),
-      :queue => nil,
-      :enqueue => Proc.new{ |queue, message| raise "not implemented" },
-      :dequeue => Proc.new{ |queue, logger| logger.error("dequeue not defined"); sleep(1); nil },
-      :bookkeeping_interval => 10*60, # 10 minutes
+      
+      # Callback settings
       :before_initialize => Proc.new{ |logger| },
       :after_initialize => Proc.new{ |logger| },
       :on_internal_exception => Proc.new{ |e, logger| },
@@ -47,10 +52,6 @@ module TaskTempest
     
     module ClassMethods
       
-      def process_name(value)
-        settings.process_name = value
-      end
-      
       def log_level(value)
         settings.log_level = value
       end
@@ -63,8 +64,8 @@ module TaskTempest
         settings.no_message_sleep = value
       end
       
-      def no_thread_sleep(value)
-        settings.no_thread_sleep = value
+      def pulse_delay(value)
+        settings.pulse_delay = value
       end
       
       def root_dir(path)
@@ -95,16 +96,12 @@ module TaskTempest
         settings.shutdown_timeout = value.to_f
       end
       
-      def queue(&block)
-        settings.queue = block
-      end
-      
-      def enqueue(&block)
-        settings.enqueue = block
-      end
-      
-      def dequeue(&block)
-        settings.dequeue = block
+      def queue(queue = nil, &block)
+        if block_given?
+          settings.queue = block
+        else
+          settings.queue = queue
+        end
       end
       
       def bookkeeping_interval(value)

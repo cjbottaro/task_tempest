@@ -1,3 +1,4 @@
+Dir.chdir(File.dirname(__FILE__))
 $LOAD_PATH << "../lib"
 
 require "rubygems"
@@ -9,24 +10,43 @@ require "tasks/evaler"
 require "tasks/greeter"
 
 class MemcachedQueue
+  attr_reader :logger
   
-  def initialize(name)
+  def initialize(name, logger = nil)
     @name = name
+    @logger = logger || Logger.new(File.open("/dev/null", "w"))
     @cache = MemCache.new "localhost:11211"
   end
   
   def push(item)
+    logger.debug "MemcachedQueue#push #{item.inspect}"
     queue = @cache.fetch(@name){ [] }
     queue.push(item)
     @cache.set(@name, queue)
   end
   
+  alias_method :enqueue, :push
+  
   def pop
+    # @count ||= 0
+    # @count += 1
+    # if @count % 10 == 0
+    #   @count = 0
+    #   raise "pop failed"
+    # end
+    
     queue = @cache.fetch(@name){ [] }
     item = queue.pop
+    logger.debug "MemcachedQueue#pop #{item.inspect}" if item
     @cache.set(@name, queue)
     item
   end
+  
+  def size
+    @cache.fetch(@name){ [] }.size
+  end
+  
+  alias_method :dequeue, :pop
   
 end
 
@@ -41,11 +61,8 @@ end
 # Note this example requires the SystemTimer, daemons and memcache-client gems.
 class MyTempest < TaskTempest::Engine
   
-  # This dictates what the logs will be named.
-  process_name "my_tempest"
-  
   # How many threads.
-  threads 5
+  threads 3
   
   # Where to write the log files.
   log_dir "log"
@@ -70,25 +87,6 @@ class MyTempest < TaskTempest::Engine
     MemcachedQueue.new("my_tempest_queue")
   end
   
-  # Define how to enqueue messages.  This is used by MyTempest.submit.
-  # message is a tuple [task_id, task_class_name, *task_arguments].
-  # *args are passed through from MyTempest.submit.
-  enqueue do |queue, message, logger, *args|
-    logger.debug "enqueue #{message.inspect}"
-    queue.push(message)
-  end
-  
-  # Define how to dequeue messages.  It must return either
-  # nil or a tuple: [task_id, task_class_name, *task_arguments]
-  dequeue do |queue, logger|
-    if (message = queue.pop)
-      logger.debug "dequeue #{message.inspect}"
-      message
-    else
-      nil
-    end
-  end
-  
   # Callback that happens after #init_logging, but before #bootstrap.
   before_initialize do |logger|
   end
@@ -104,7 +102,7 @@ class MyTempest < TaskTempest::Engine
   
   # Callback that happens when an exception occurs in a task.
   on_task_exception do |task, e, logger|
-    puts "(T:#{task_id}) #{e.class}: #{e.message}"
+    puts "(T:#{task.id}) #{e.class}: #{e.message}"
   end
   
   # Callback that happens when a task exceeds the task_timeout setting.
@@ -128,7 +126,7 @@ end
 
 if $0 == __FILE__
   require "daemons"
-  Daemons.run_proc(MyTempest.settings.process_name, :log_output => true) do
+  Daemons.run_proc(MyTempest.name, :log_output => true) do
     MyTempest.new.run
   end
 end

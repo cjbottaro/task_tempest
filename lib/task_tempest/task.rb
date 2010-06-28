@@ -6,20 +6,18 @@ require "task_tempest/require"
 
 module TaskTempest
   class Task
-    attr_reader :id, :args, :execution
+    attr_reader :id, :args
+    attr_accessor :execution
     
     def initialize(*args)
       @id = generate_id
       @args = args
     end
     
-    def override(options = {})
+    def init(options = {})
       @id = options[:id] if options[:id]
       @logger = TaskLogger.new(options[:logger], self) if options[:logger]
-    end
-    
-    def spawn(storm)
-      @execution = storm.execute{ run }
+      self
     end
     
     def run

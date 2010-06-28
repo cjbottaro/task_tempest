@@ -7,17 +7,23 @@ module TaskTempest
       SignalException
     ]
     
-    def with_error_handling(halt_on_error = false)
+    def with_error_handling(error_action = :continue)
       yield
     rescue *SHUTDOWN_EXCEPTIONS => e
       raise
     rescue Exception => e
       on_internal_exception(e)
-      if halt_on_error
+      case error_action
+      when :halt
         logger.fatal format_exception(e)
         exit(-1)
-      else
+      when :reraise
+        logger.fatal format_exception(e)
+        raise
+      when :continue
         logger.error format_exception(e)
+      else
+        raise "Wtf man, typo."
       end
     end
     
@@ -45,7 +51,7 @@ module TaskTempest
     end
     
     def format_exception(e)
-      "#{e.class} #{e.message}\n" + e.backtrace.join("\n")
+      "#{e.class}: #{e.message}\n" + e.backtrace.join("\n")
     end
     
   end
