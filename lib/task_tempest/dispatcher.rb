@@ -1,6 +1,6 @@
 module TaskTempest
   class Dispatcher
-    attr_reader :logger, :thread
+    attr_reader :logger
     
     def initialize(options)
       options.each{ |k, v| instance_variable_set("@#{k}", v) }

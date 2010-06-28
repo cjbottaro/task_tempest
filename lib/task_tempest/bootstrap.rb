@@ -1,4 +1,5 @@
 require "thread_storm"
+require "task_tempest/bookkeeper"
 require "task_tempest/dispatcher"
 
 module TaskTempest

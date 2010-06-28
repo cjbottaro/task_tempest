@@ -1,7 +1,6 @@
 require "benchmark"
 require "thread_storm"
 
-require "task_tempest/bookkeeper"
 require "task_tempest/bootstrap"
 require "task_tempest/callbacks"
 require "task_tempest/error_handling"
