@@ -10,6 +10,7 @@ module TaskTempest
       :log_level => Logger::INFO,
       :queue => nil,
       :bookkeeping_interval => 10*60, # 10 minutes
+      :log_name => nil,
       
       # Delay settings
       :no_message_sleep => 1,
@@ -58,6 +59,10 @@ module TaskTempest
       
       def threads(value)
         settings.threads = value
+      end
+      
+      def log_name(value)
+        settings.log_name = value
       end
       
       def no_message_sleep(value)

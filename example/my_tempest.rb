@@ -67,6 +67,9 @@ class MyTempest < TaskTempest::Engine
   # Where to write the log files.
   log_dir "log"
   
+  # What to name the log files.
+  log_name "my_tempest"
+  
   # Where to look for task classes.  Will require each .rb file in this directory.
   task_dir "tasks"
   

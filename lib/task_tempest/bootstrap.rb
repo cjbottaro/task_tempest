@@ -7,7 +7,8 @@ module TaskTempest
     
     def logger
       @logger ||= begin
-        path = "#{settings.log_dir}/#{self.class.name}.log"
+        log_name = settings.log_name || self.class.name
+        path = "#{settings.log_dir}/#{log_name}.log"
         Logger.new(path).tap do |logger|
           logger.formatter = LogFormatter
           logger.level = settings.log_level
@@ -17,7 +18,8 @@ module TaskTempest
     
     def task_logger
       @task_logger ||= begin
-        path = "#{settings.log_dir}/#{self.class.name}.task.log"
+        log_name = settings.log_name || self.class.name
+        path = "#{settings.log_dir}/#{log_name}.task.log"
         Logger.new(path).tap do |logger|
           logger.formatter = LogFormatter
           logger.level = settings.log_level

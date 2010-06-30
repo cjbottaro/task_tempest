@@ -34,6 +34,10 @@ module TaskTempest
       end
     end
     
+    def self.run
+      new.run
+    end
+    
     def run
       bootstrap(:halt)
       with_shutdown_handling{ heartbeat while true }
