@@ -11,17 +11,21 @@ class Array
     [passed, failed]
   end unless method_defined?(:separate)
   
-  def sum(&block)
-    if block_given?
-      inject(0){ |memo, item| memo += yield(item); memo }
-    else
-      total = inject(0){ |memo, item| memo += item; memo }
-    end
-  end
-  
   def avg(&block)
     sum(&block).to_f / length
   end
+end
+
+module Enumerable
+  def sum(identity = 0, &block)
+    return identity unless size > 0
+
+    if block_given?
+      map(&block).sum
+    else
+      inject { |sum, element| sum + element }
+    end
+  end unless method_defined?(:sum)
 end
 
 class Float
