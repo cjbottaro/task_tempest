@@ -29,13 +29,11 @@ module Enumerable
 end
 
 class Float
-  unless method_defined?(:round_with_precision)
-    def round_with_precision(precision = nil)
-      precision.nil? ? round_without_precision : (self * (10 ** precision)).round / (10 ** precision).to_f
-    end
-    alias_method :round_without_precision, :round
-    alias_method :round, :round_with_precision
+  def round_with_task_tempest(precision = nil)
+    precision.nil? ? round_without_task_tempest : (self * (10 ** precision)).round / (10 ** precision).to_f
   end
+  alias_method :round_without_task_tempest, :round
+  alias_method :round, :round_with_task_tempest
 end
 
 class Object
