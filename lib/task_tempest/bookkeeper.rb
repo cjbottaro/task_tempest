@@ -71,7 +71,7 @@ module TaskTempest
           0.0
         end
       end
-      { :tot => tot, :err => err, :pct => pct.round(2) }
+      { :tot => tot, :err => err, :pct => pct.round(3) }
     end
     
     def task_throughput
