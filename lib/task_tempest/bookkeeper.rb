@@ -39,15 +39,15 @@ module TaskTempest
         else
           0.0
         end
-      end
-      book[:tasks][:per_thread] = tasks_per_thread(@storm.threads, @executions).values
-      book[:tasks][:avg_duration] = @executions.inject(0){ |memo, e| memo += e.duration; memo }.to_f / @executions.length
+      end.round(3)
+      book[:tasks][:per_thread] = tasks_per_thread
+      book[:tasks][:durations] = task_durations
       
       # Thread (worker) info.
       book[:threads] = {}
       book[:threads][:busy] = @storm.busy_workers.length
       book[:threads][:idle] = @storm.size - book[:threads][:busy]
-      book[:threads][:saturation] = book[:threads][:busy] / @storm.size.to_f * 100
+      book[:threads][:saturation] = (book[:threads][:busy] / @storm.size.to_f * 100).round(2)
       
       # Memory, Object, GC info.
       book[:memory] = {}
@@ -68,16 +68,23 @@ module TaskTempest
       book
     end
     
-    # executions passed in are *finished*.
-    def tasks_per_thread(threads, executions)
-      counts_by_thread = threads.inject({}) do |memo, thread|
+    def tasks_per_thread
+      counts_by_thread = @storm.threads.inject({}) do |memo, thread|
         memo[thread] = 0
         memo
       end
-      executions.each do |e|
-        counts_by_thread[e.thread] += 1
+      @executions.each{ |e| counts_by_thread[e.thread] += 1 }
+      counts = counts_by_thread.values
+      { :min => counts.min, :max => counts.max, :avg => counts.avg.round(2) }
+    end
+    
+    def task_durations
+      durations = @executions.collect{ |execution| execution.duration }
+      if durations.length > 0
+        { :min => durations.min.round(3), :max => durations.max.round(3), :avg => durations.avg.round(3) }
+      else
+        "n/a"
       end
-      counts_by_thread
     end
     
     def get_memory(which)

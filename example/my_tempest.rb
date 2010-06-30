@@ -71,7 +71,7 @@ class MyTempest < TaskTempest::Engine
   task_dir "tasks"
   
   # Time in seconds between each bookkeeping event.
-  bookkeeping_interval 15
+  bookkeeping_interval 10
   
   # Don't display log messages below this level.
   log_level Logger::INFO
