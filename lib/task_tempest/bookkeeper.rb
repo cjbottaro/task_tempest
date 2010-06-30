@@ -31,17 +31,10 @@ module TaskTempest
       
       # Task success/error counts.
       book[:tasks] = {}
-      book[:tasks][:total_count] = @executions.length
-      book[:tasks][:error_count] = @executions.inject(0){ |memo, e| memo += 1 if e.exception; memo }
-      book[:tasks][:error_percentage] = begin
-        if book[:tasks][:total_count] > 0
-          book[:tasks][:error_count].to_f / book[:tasks][:total_count] * 100.0
-        else
-          0.0
-        end
-      end.round(3)
+      book[:tasks][:counts] = task_counts
       book[:tasks][:per_thread] = tasks_per_thread
       book[:tasks][:durations] = task_durations
+      book[:tasks][:throughput] = task_throughput
       
       # Thread (worker) info.
       book[:threads] = {}
@@ -66,6 +59,26 @@ module TaskTempest
       book[:queue][:backlog] = @storm.executions.inject(0){ |memo, e| memo += 1 unless e.started?; memo }
       
       book
+    end
+    
+    def task_counts
+      tot = @executions.length
+      err = @executions.sum{ |e| e.exception ? 1 : 0 }
+      pct = begin
+        if tot > 0
+          (err.to_f / tot)
+        else
+          0.0
+        end
+      end
+      { :tot => tot, :err => err, :pct => pct.round(2) }
+    end
+    
+    def task_throughput
+      duration = Time.now - @timer
+      per_sec = @executions.length.to_f / duration
+      per_min = (per_sec * 60).round(2)
+      "#{per_min}/m"
     end
     
     def tasks_per_thread
