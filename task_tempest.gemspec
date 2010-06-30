@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{task_tempest}
-  s.version = "0.1.0"
+  s.version = "0.2.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Christopher J. Bottaro"]
-  s.date = %q{2010-06-24}
+  s.date = %q{2010-06-28}
   s.description = %q{Framework for creating queue based, threaded asychronous job processors.}
   s.email = %q{cjbottaro@alumni.cs.utexas.edu}
   s.extra_rdoc_files = [
@@ -24,16 +24,18 @@ Gem::Specification.new do |s|
      "README.rdoc",
      "Rakefile",
      "VERSION",
-     "examples/my_tempest.rb",
-     "examples/tasks/evaler.rb",
-     "examples/tasks/greeter.rb",
+     "example/my_tempest.rb",
+     "example/tasks/evaler.rb",
+     "example/tasks/greeter.rb",
      "lib/task_tempest.rb",
      "lib/task_tempest/active_support.rb",
      "lib/task_tempest/bookkeeper.rb",
      "lib/task_tempest/bootstrap.rb",
      "lib/task_tempest/callbacks.rb",
+     "lib/task_tempest/dispatcher.rb",
      "lib/task_tempest/engine.rb",
      "lib/task_tempest/error_handling.rb",
+     "lib/task_tempest/producer.rb",
      "lib/task_tempest/require.rb",
      "lib/task_tempest/settings.rb",
      "lib/task_tempest/task.rb",
@@ -45,21 +47,18 @@ Gem::Specification.new do |s|
   s.homepage = %q{http://github.com/cjbottaro/task_tempest}
   s.rdoc_options = ["--charset=UTF-8"]
   s.require_paths = ["lib"]
-  s.rubygems_version = %q{1.3.7}
+  s.rubygems_version = %q{1.3.6}
   s.summary = %q{Framework for creating asychronous job processors.}
   s.test_files = [
     "test/helper.rb",
-     "test/test_task_tempest.rb",
-     "examples/my_tempest.rb",
-     "examples/tasks/evaler.rb",
-     "examples/tasks/greeter.rb"
+     "test/test_task_tempest.rb"
   ]
 
   if s.respond_to? :specification_version then
     current_version = Gem::Specification::CURRENT_SPECIFICATION_VERSION
     s.specification_version = 3
 
-    if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
+    if Gem::Version.new(Gem::RubyGemsVersion) >= Gem::Version.new('1.2.0') then
     else
     end
   else

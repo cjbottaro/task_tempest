@@ -8,7 +8,10 @@ module TaskTempest
     end
     
     def start
-      @thread = Thread.new{ run } if dead?
+      if dead?
+        @queue = @queue_factory.call
+        @thread = Thread.new{ run }
+      end
     end
     
     alias_method :restart, :start

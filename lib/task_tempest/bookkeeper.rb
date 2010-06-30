@@ -12,15 +12,22 @@ module TaskTempest
       @executions += executions
       
       if Time.now - @timer > @interval
-        logger.info "[STATS] " + book.inspect
+        logger.info "[STATS] " + make_book.inspect
         @executions.clear
         @timer = Time.now
       end
     end
     
-    def book
-      book = {}
+    def make_book
+      
+      # Do some setup.
       ObjectSpace.garbage_collect
+      queue = @queue_factory.call
+      book = {}
+      
+      # Reset memoized objects.
+      @memory = nil
+      @files = nil
       
       # Task success/error counts.
       book[:tasks] = {}
@@ -45,8 +52,8 @@ module TaskTempest
       # Memory, Object, GC info.
       book[:memory] = {}
       book[:memory][:live_objects] = ObjectSpace.live_objects rescue nil
-      book[:memory][:resident] = get_memory(:resident)
-      book[:memory][:virtual] = get_memory(:virtual)
+      book[:memory][:resident] = format_memory(get_memory(:resident))
+      book[:memory][:virtual] = format_memory(get_memory(:virtual))
       
       # Open file counts.
       book[:files] = {}
@@ -55,7 +62,7 @@ module TaskTempest
       
       # Queue info.
       book[:queue] = {}
-      book[:queue][:size] = @queue.size if @queue.respond_to?(:size)
+      book[:queue][:size] = queue.size if queue.respond_to?(:size)
       book[:queue][:backlog] = @storm.executions.inject(0){ |memo, e| memo += 1 unless e.started?; memo }
       
       book
@@ -93,6 +100,16 @@ module TaskTempest
         @files.length
       when :tcp
         @files.inject(0){ |memo, line| memo += 1 if line.downcase =~ /tcp/; memo }
+      end
+    end
+    
+    KB = 1024
+    MB = KB**2
+    def format_memory(memory)
+      if memory > MB
+        (memory / MB).to_s + "M"
+      else
+        (memory / KB).to_s + "K"
       end
     end
     

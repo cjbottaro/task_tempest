@@ -50,7 +50,7 @@ module TaskTempest
       @dispatcher ||= begin
         Dispatcher.new :logger => logger,
                        :task_logger => task_logger,
-                       :queue => queue,
+                       :queue_factory => Proc.new{ settings.queue.call(logger) },
                        :storm => storm,
                        :no_message_sleep => settings.no_message_sleep
       end
@@ -59,7 +59,7 @@ module TaskTempest
     def bookkeeper
       @bookkeeper ||= begin
         Bookkeeper.new :storm => storm,
-                       :queue => queue,
+                       :queue_factory => Proc.new{ settings.queue.call(logger) },
                        :interval => settings.bookkeeping_interval,
                        :logger => logger
       end

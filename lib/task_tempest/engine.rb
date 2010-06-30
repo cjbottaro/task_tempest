@@ -48,12 +48,7 @@ module TaskTempest
         with_error_handling{ bookkeeping }
       end
       logger.debug "heartbeat complete in #{time} seconds"
-      delay = settings.pulse_delay - time
-      if delay < 0
-        logger.warn "heartbeat took longer than pulse delay"
-      else
-        sleep(delay)
-      end
+      sleep(settings.pulse_delay)
     end
     
     def finish_tasks
