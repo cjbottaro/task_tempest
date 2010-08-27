@@ -65,7 +65,7 @@ namespace :example do
     while true
       r = rand
       sleep(r)
-      MyTempest.submit([nil, "Evaler", %{sleep(#{r})}])
+      MyTempest.submit([nil, "FibCalc", 25 + rand(8)])
     end
   end
   

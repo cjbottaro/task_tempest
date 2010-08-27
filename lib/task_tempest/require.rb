@@ -1,27 +1,16 @@
-require "set"
-
 module Kernel
-  alias_method :original_require, :require
   
-  def require(file)
-    without_ext = file.sub /(\.rb$)|(\.bundle$)/, ""
-    files = %w[.rb .bundle].collect{ |ext| without_ext + ext }
-    already_required = !($".to_set & files.to_set).empty?
-    required_files = Thread.current[:required_files]
-    required_files << file if required_files and not already_required
-    original_require(file)
+  class << self
+    attr_accessor :require_callback
   end
   
-  def self.record_requires!
-    if Thread.current[:required_files] == nil
-      Thread.current[:required_files] = []
-      yield
-      required_files = Thread.current[:required_files]
-      Thread.current[:required_files] = nil
-      required_files
-    else # Reentrant case.
-      yield
-      Thread.current[:required_files]
+  def require_with_callback(file)
+    require_without_callback(file).tap do |required|
+      Kernel.require_callback.call(file) if required and Kernel.require_callback
     end
   end
+  
+  alias_method :require_without_callback, :require
+  alias_method :require, :require_with_callback
+  
 end

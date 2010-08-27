@@ -9,6 +9,14 @@ module TaskTempest
     attr_reader :id, :args
     attr_accessor :execution
     
+    def self.settings
+      @settings ||= {}
+    end
+      
+    def self.timeout(value)
+      settings[:timeout] = value
+    end
+    
     def initialize(*args)
       @id = generate_id
       @args = args
@@ -21,7 +29,13 @@ module TaskTempest
     end
     
     def run
-      Kernel.record_requires!{ start(*args) }
+      # FIXME This doesn't really work with timeouts because
+      # the lines after start() may or may not be called.
+      Thread.current[:required_files] = []
+      start(*args)
+      required_files = Thread.current[:required_files]
+      Thread.current[:required_files] = nil
+      required_files
     end
     
     def start(*args)

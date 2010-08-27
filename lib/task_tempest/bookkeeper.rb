@@ -38,13 +38,13 @@ module TaskTempest
       
       # Thread (worker) info.
       book[:threads] = {}
-      book[:threads][:busy] = @storm.busy_workers.length
-      book[:threads][:idle] = @storm.size - book[:threads][:busy]
-      book[:threads][:saturation] = (book[:threads][:busy] / @storm.size.to_f * 100).round(2)
+      book[:threads][:busy] = @storm.executions.inject(0){ |memo, e| memo += 1 if e.started?; memo }
+      book[:threads][:idle] = @storm.options[:size] - book[:threads][:busy]
+      book[:threads][:saturation] = (book[:threads][:busy] / @storm.options[:size].to_f * 100).round(2)
       
       # Memory, Object, GC info.
       book[:memory] = {}
-      book[:memory][:live_objects] = ObjectSpace.live_objects rescue nil
+      book[:memory][:live_objects] = ObjectSpace.live_objects rescue "n/a"
       book[:memory][:resident] = format_memory(get_memory(:resident))
       book[:memory][:virtual] = format_memory(get_memory(:virtual))
       
@@ -56,7 +56,7 @@ module TaskTempest
       # Queue info.
       book[:queue] = {}
       book[:queue][:size] = queue.size if queue.respond_to?(:size)
-      book[:queue][:backlog] = @storm.executions.inject(0){ |memo, e| memo += 1 unless e.started?; memo }
+      book[:queue][:backlog] = @storm.executions.inject(0){ |memo, e| memo += 1 if e.queued?; memo }
       
       book
     end

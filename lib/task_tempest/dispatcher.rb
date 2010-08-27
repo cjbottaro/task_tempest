@@ -51,7 +51,18 @@ module TaskTempest
       task_id, task_class_name, *task_args = @message
       task_class = TaskTempest::Task.const_get(task_class_name)
       task = task_class.new(*task_args).init(:id => task_id, :logger => @task_logger)
-      task.execution = @storm.execute(task){ task.run }
+      
+      # There is a nasty race condition here.  The execution can run and finish and
+      # Engine#finish_tasks called before the below task.execution assignment happens.
+      # Thus we'll crash when we try to call Task#format log from Engine#finish_tasks.
+      # task.execution = @storm.execute(task){ task.run }
+      
+      # ThreadStorm 0.6.0 provides a way to make sure that race condition commented
+      # above doesn't happen.  How nice of the ThreadStorm author.
+      task.execution = ThreadStorm::Execution.new(task){ task.run }
+      task.execution.options[:timeout] = task_class.settings[:timeout] if task_class.settings.has_key?(:timeout)
+      @storm.execute(task.execution)
+      
       logger.info task.format_log("started")
     end
     

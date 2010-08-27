@@ -1,6 +1,7 @@
 require "thread_storm"
 require "task_tempest/bookkeeper"
 require "task_tempest/dispatcher"
+require "task_tempest/require"
 
 module TaskTempest
   module Bootstrap
@@ -118,7 +119,10 @@ module TaskTempest
     end
     
     def init_require
-      require "task_tempest/require"
+      # TODO Turn this back on when Task#run is fixed.
+      # Kernel.require_callback = Proc.new do |file|
+      #   Thread.current[:required_files] << file if Thread.current[:required_files]
+      # end
     end
     
     def init_bookkeeper

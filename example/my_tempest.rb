@@ -1,10 +1,8 @@
 Dir.chdir(File.dirname(__FILE__))
-$LOAD_PATH << "../lib"
+$LOAD_PATH.unshift "../lib"
 
-require "rubygems"
 require "task_tempest"
 require "memcache"
-require "system_timer"
 
 require "tasks/evaler"
 require "tasks/greeter"
@@ -80,10 +78,10 @@ class MyTempest < TaskTempest::Engine
   log_level Logger::INFO
   
   # Maximum time in seconds a task is allowed to take before it is aborted.
-  task_timeout 5
+  task_timeout 1
   
   # What timeout method to use.  Timeout.timeout is unreliable.
-  timeout_method SystemTimer.method(:timeout_after)
+  #timeout_method SystemTimer.method(:timeout_after)
   
   # Define the queue.
   queue do |logger|
