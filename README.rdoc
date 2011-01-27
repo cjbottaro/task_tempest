@@ -4,60 +4,157 @@ Framework for building threaded asynchronous job processors.
 
 == Description
 
-task_tempest lets you build glorified loops.  You set some configuration options, define some callbacks, then it just loops, reading messages from a queue and processing them.
+task_tempest basically lets you build glorified loops, reading messages from a queue and dispatching them to classes to handle.
 
-You define the queue, how to read from the queue, how to write to the queue and the classes that process the queue messages.  The class that does the looping is called the tempest and the classes that handle job are called tasks.
+== Quickstart
 
-== Defining a tempest
-
-Defining a tempest is simple.  You just derive off of <tt>TaskTempest::Engine</tt>, set some configuration options and callbacks, then just instantiate the class and call +run+.
+Run the code below and both MathTempest.log and MathTempest.task.log will be created in your current working directory.  To stop the tempest, send the process an Interrupt or SIGTERM.
 
   require "task_tempest"
-  class MyTempest < TaskTempest::Engine
-    process_name "my_tempest"
-  
-    queue do |logger|
-      logger.debug "initializing queue"
-      SuperCoolQueue.new(...)
+
+  class MemoryQueue
+    def initialize; @array = []; end
+    def enqueue(message); @array.push(message); end
+    def dequeue; @array.shift; end
+    def size; @array.size; end
+  end
+
+  class MathTempest < TaskTempest::Engine
+    configure do
+      queue MemoryQueue.new
     end
+  end
+
+  class Adder < TaskTempest::Task
+    def start(a, b)
+      c = a + b
+      logger.info "#{a} + #{b} = #{c}"
+    end
+  end
+
+  10.times do
+    a, b = rand(10), rand(10)
+    task = Adder.new(a, b)
+    MathTempest.submit(task)
+  end
+
+  MathTempest.run
+
+== Queue
+
+The queue object given in the TaskTempest::Engine's +configure+ block must define 3 methods: +enqueue+, +dequeue+ and +size+.
+
++task_tempest+ doesn't care what kind of queue you use or what you actually store in it, as long as +dequeue+ returns a _message_ as described here.
+
+A _message_ is an array with the following format:
+
+  [task_id, task_class_name, arg1, arg2, ...]
+
+An example message is:
+
+  [nil, "Adder", 2, 5]
+
+The queue's +enqueue+ method will receive a message as its first argument, plus any additional arguments given to +submit+.
+
+The queue's +dequeue+ method must return a message.
+
+If the +task_id+ of a message is +nil+, then +task_tempest+ will automatically assign an id.
+
+== Tasks
+
+Messages are dispatched to a task instances to handle.  A task class must inherit from TaskTempest::Task and define a +start+ method.  The start method will be called with the arguments from the message being dispatched.
+
+  class Averager < TaskTempest::Task
+    configure do
+      ...
+    end
+    def start(*args)
+      avg = args.inject(0){ |memo, n| memo += n; memo } / args.length
+      logger.info "The average of #{args.inspect} is #{avg}"
+    end
+  end
   
-    dequeue do |queue, logger|
-      message = queue.pop
-      if message
-        logger.info "message received"
-        YAML.load(message.body)
-      else
-        nil
+  task = Averager.new(2, 4)
+  MathTempest.submit(task)
+  # Will produce a message like ["9ac4f", "Averager", 2, 4]
+  # And eventually Averager#start(2, 4) will be called.
+  
+  task = Averager.new(2, 4, 6)
+  MathTempest.submit(task)
+  # Will produce a message like ["b733c", "Averager", 2, 4, 6]
+  # And eventually Averager#start(2, 4, 6) will be called.
+
+See TaskTempest::Task::Configuration for what options can be set in a Task's +configure+ block.
+
+== Logging
+
++task_tempest+ logs to a main log and a task log.
+
+The main log shows a high level view of all the tasks that are run (when they started, when the finished, if they failed, if they timed out, etc).
+
+The task log shows detailed information about each task.  Each line in the task log is prefixed with a task id.  This is so that if you see a task failed in the main log, you can grep for its id in the task log.
+
+Any logging done in a task will be written to the task log.
+
+== Callbacks
+
+Each task class can define callbacks for +success+, +failure+, and +timeout+ of a task.
+
+  class Averager < TaskTempest::Task
+    configure do
+      after_failure do |task, exception|
+        HoptoadNotifier.notify(exception)
+      end
+    end
+    ...
+  end
+
+See TaskTempest::Task::Configuration for the names of each callback and arguments yielded.
+
+== Reporting
+
++task_tempest+ collects statistics over time and allows you define callbacks to be run periodically so you can do something with those statistics.
+
+  class MathTempest < TaskTempest::Engine
+    configure do
+      report :every => 60 do |stats, logger|
+        logger.info "I've collected these stats in the past 60 seconds:  #{stats.inspect}"
       end
     end
   end
 
-+queue+ is given a logger object and required to return an instance of your queue.
+Tasks don't collect statistics on their own, but you can using callbacks in conjunction with task reporting.
 
-+dequeue+ is given the queue object and a logger object and required to return a tuple <tt>[task_id, task_class_name, *task_args]</tt>.
+  class Averager < TaskTempest::Task
+    configure do
+      timeout 1
+      report_stats do
+        { :success => 0,
+          :failure => 0,
+          :timeout => 0}
+      end
+      after_success{ |task| task.record{ |stats| stats[:success] += 1 } }
+      after_failure{ |task| task.record{ |stats| stats[:failure] += 1 } }
+      after_timeout{ |task| task.record{ |stats| stats[:timeout] += 1 } }
+      report :every => 120 do |stats, logger|
+        logger.info "Averager collected the following stats over the last 2 minutes: #{stats.inspect}"
+      end
+    end
+    ...
+  end
+  
++report_stats+ defines what you want to collect and how to reset them after each report interval.  TaskTempest::Task#record yields the stats so you can access them in the task's callbacks or TaskTempest::Task#start method.  Finally +report+ defines a callback and how often to call it.  The stats defined by +report_stats+ and the main logger are yielded to the callback.
 
-There are many more configuration options to set and callbacks to define, please see the rdocs.
+== Daemonizing
 
-TODO provide rdocs.
-
-== Running a tempest
-
-You simply instantiate the tempest and call +run+.
-
-  MyTempest.new.run
-
-Catching an +Interrupt+ or +SystemExit+ exception will attempt a graceful shutdown, as will catching a <tt>SIGUSR2</tt> signal.  Catching a +SIGTERM+ signal will try to exit immediately.
-
-== Running as a daemon
-
-There is no code in +task_tempest+ to run as a daemon, that is left to you.  It's easy very easy with the {Daemons}[http://rubygems.org/gems/daemons] gem though.
+There is no code in +task_tempest+ to run as a daemon, that is left to you.  It's easy with the {Daemons}[http://rubygems.org/gems/daemons] gem though.
 
 Assuming your tempest is defined in <tt>my_tempest.rb</tt>, just put the following code at the bottom of the file.
 
   if $0 == __FILE__
     require "daemons"
-    Daemons.run_proc(MyTempest.settings.process_name, :log_output => true) do
-      MyTempest.new.run
+    Daemons.run_proc(MyTempest.conf.name, :log_output => true) do
+      MyTempest.run
     end
   end
 
@@ -67,63 +164,26 @@ Now you can run it as a daemon from the command line.
   ruby my_tempest.rb stop
   ruby my_tempest.rb run # Run in foreground
 
-See the {rdoc}[http://daemons.rubyforge.org/] for {Daemons}[http://rubygems.org/gems/daemons] for more info.
+See the {Daemons rdoc}[http://daemons.rubyforge.org/] for more info.
 
-== Defining a task
+== Rails
 
-A task is what handles messages pulled off the queue.
+Often times, +task_tempest+ is used as an asynchronous task processor for a Rails app.  In these cases, you probably want to load the Rails environment, so you can have access to models, configuration, etc.
 
-  require "task_tempest"
-  class GreeterTask < TaskTempest::Task
-    def start(person, greeting)
-      logger.info "about to greet #{person}"
-      puts "#{greeting}, #{person}!"
+You can load the Rails environment however you like, but if you choose to load it in one of +task_tempest+'s initialization callbacks, then there are some caveats to be aware of.
+
+  class MathTempest < TaskTempest::Engine
+    configure do
+      root{ Rails.root }
+      after_initialize do
+        require "config/environment" # Load Rails.
+      end
     end
   end
 
-+start+ can take whatever arguments you want, but it must correspond with the arguments you put in the message.
+That won't work and will result in an exception saying +Rails+ isn't defined, because the +root+ configuration option is used during the initialization process before the +after_initialized+ callback is called.  To fix the error, change +after_initialized+ to +before_initialize+.
 
-== Messages
-
-A message is what is returned by the +dequeue+ callback.  They are simply arrays of the form <tt>[task_id, task_class_name, *task_args]</tt>.  Note that if +task_id+ is nil, then one will be generated for automatically.
-
-An message like...
-
-  [nil, "GreeterTask", "Christopher", "Hello"]
-
-...would cause our +GreeterTask+ to puts "Hello, Christopher!".
-
-== Submitting tasks
-
-You can push messages on to the queue however you like, but +task_tempest+ provides a little convenience.  Assuming our previous examples...
-
-  task = GreeterTask.new("Christopher", "Hello")
-  MyTempest.submit(task)
-
-or
-
-  message = [nil, "GreeterTask", "Christopher", "Hello"]
-  MyTempest.submit(message)
-
-For this to work, you need to define the +enqueue+ callback in your tempest definition.
-
-  require "task_tempest"
-  class MyTempest < TaskTempest::Engine
-    ...
-    enqueue do |queue, message, logger, *args|
-      logger.info "enqueuing message #{message.inspect}"
-      queue.push(YAML.dump(message))
-    end
-    ...
-  end
-
-The +args+ argument is passed through via <tt>TaskTempest::Engine.submit</tt>.  For example, if you called +submit+ like...
-
-  MyTempest.submit(message, "one", "two")
-  
-Then +args+ would be <tt>["one", "two"]</tt>.  This is useful if you are using a priority queue and you want to submit your task with a given priority.
-
-== Complete example
+== Complete examples
 
 See the +examples+ directory.
 

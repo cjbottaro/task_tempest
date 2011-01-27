@@ -1,35 +1,44 @@
-module TaskTempest
-  class Dispatcher
-    attr_reader :logger
+require "logger"
+
+module TaskTempest #:nodoc:
+  class Dispatcher #:nodoc:
     
-    def initialize(options)
-      options.each{ |k, v| instance_variable_set("@#{k}", v) }
-      start
+    attr_reader :storm, :queue, :options, :thread, :message, :logger
+    
+    DEFAULTS = {
+      :logger         => Logger.new(STDOUT),
+      :task_logger    => Logger.new(STDOUT),
+      :poll_interval  => 1,
+      :start          => false
+    }
+    
+    def initialize(storm, queue, options = {})
+      @options = DEFAULTS.merge(options)
+      @storm   = storm
+      @queue   = queue
+      @logger  = @options[:logger]
+      
+      start if @options[:start]
+    end
+    
+    def died?
+      @thread and @thread.status.nil?
     end
     
     def start
-      if dead?
-        @queue = @queue_factory.call
-        @thread = Thread.new{ run }
-      end
+      @thread = Thread.new{ run }
     end
     
-    alias_method :restart, :start
-    
-    def alive?
-      @thread and @thread.alive?
+    def stop?
+      !!@stop
     end
     
-    def dead?
-      not alive?
-    end
-    
-    def exception
-      dead? and @thread.value
+    def stop!
+      @stop = true
     end
     
     def run
-      run_loop while true
+      run_loop while not stop?
     end
     
     def run_loop
@@ -37,38 +46,34 @@ module TaskTempest
     end
     
     def consume
-      @message = @queue.dequeue
-      if @message
-        true
-      else
-        logger.debug "queue empty, sleeping for #{@no_message_sleep}"
-        sleep(@no_message_sleep)
-        false
+      logger.debug "calling dequeue"
+      @message = queue.dequeue.tap do |message|
+        if not message
+          logger.debug "queue empty, sleeping for #{options[:poll_interval]} seconds"
+          sleep(options[:poll_interval])
+        else
+          logger.debug "message received"
+        end
       end
     end
     
     def dispatch
-      task_id, task_class_name, *task_args = @message
-      task_class = TaskTempest::Task.const_get(task_class_name)
-      task = task_class.new(*task_args).init(:id => task_id, :logger => @task_logger)
-      
-      # There is a nasty race condition here.  The execution can run and finish and
-      # Engine#finish_tasks called before the below task.execution assignment happens.
-      # Thus we'll crash when we try to call Task#format log from Engine#finish_tasks.
-      # task.execution = @storm.execute(task){ task.run }
-      
-      # ThreadStorm 0.6.0 provides a way to make sure that race condition commented
-      # above doesn't happen.  How nice of the ThreadStorm author.
-      task.execution = ThreadStorm::Execution.new(task){ task.run }
-      task.execution.options[:timeout] = task_class.settings[:timeout] if task_class.settings.has_key?(:timeout)
-      @storm.execute(task.execution)
-      
-      logger.info task.format_log("started")
+      storm.execute(task.execution)
+      logger.debug "dispatched"
     end
     
-    def shutdown
-      @thread and @thread.kill
-      @thread.join
+    def task(message = nil)
+      task_id, task_class_name, *task_args = message || self.message
+      if task_class_name.kind_of?(Class)
+        task_class = task_class_name # For testing.
+      else
+        task_class = TaskTempest::Task.const_get(task_class_name)
+      end
+      task = task_class.instantiate(task_id, options[:task_logger], *task_args)
+      
+      task.execution = storm.new_execution(task){ task.run }
+      task.execution.options[:timeout] = task_class.conf.timeout
+      task
     end
     
   end

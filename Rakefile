@@ -10,6 +10,8 @@ begin
     gem.email = "cjbottaro@alumni.cs.utexas.edu"
     gem.homepage = "http://github.com/cjbottaro/task_tempest"
     gem.authors = ["Christopher J. Bottaro"]
+    gem.add_dependency 'col', "~> 1.0"
+    gem.add_dependency 'thread_storm', "~> 0.7"
     # gem.add_development_dependency "thoughtbot-shoulda", ">= 0"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
