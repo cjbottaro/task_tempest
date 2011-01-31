@@ -1,7 +1,8 @@
-require "task_tempest/actualized_configuration"
-require "task_tempest/bootstrapper"
-require "task_tempest/configuration_dsl"
+require "configuration_dsl"
+
 require "task_tempest/configuration"
+require "task_tempest/bootstrapper"
+require "task_tempest/engine/configuration"
 require "task_tempest/error_handling"
 require "task_tempest/health_checking"
 require "task_tempest/reporting"
@@ -30,7 +31,7 @@ module TaskTempest #:nodoc:
     attr_reader :book           #:nodoc:
 
     extend Helpers
-    include ConfigurationDsl
+    extend ConfigurationDsl
     include ErrorHandling
     include HealthChecking
     include Reporting
@@ -40,12 +41,14 @@ module TaskTempest #:nodoc:
     end
     
     def self.inherited(mod) #:nodoc:
-      mod.instance_variable_set("@configuration", copy_struct(configuration))
       mod.initialize_class
     end
     
     def self.initialize_class #:nodoc:
-      @conf = ActualizedConfiguration.new(self, configuration, Configuration::PROCS)
+      @conf = TaskTempest::Configuration.new configuration,
+                                             self,
+                                             :literal => Configuration::LITERAL
+      @conf = @conf.actualize_all
     end
     
     # The configuration as a struct-like object.

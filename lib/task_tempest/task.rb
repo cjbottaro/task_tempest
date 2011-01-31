@@ -1,7 +1,8 @@
 require "digest"
 require "logger"
 
-require "task_tempest/configuration_dsl"
+require "configuration_dsl"
+
 require "task_tempest/error_handling"
 require "task_tempest/helpers"
 require "task_tempest/task/configuration"
@@ -36,7 +37,7 @@ module TaskTempest #:nodoc:
     
     extend ErrorHandling
     extend Helpers
-    include ConfigurationDsl
+    extend ConfigurationDsl
     include Reporting
     include ErrorHandling
     
@@ -45,12 +46,12 @@ module TaskTempest #:nodoc:
     end
     
     def self.inherited(mod) #:nodoc:
-      mod.instance_variable_set("@configuration", copy_struct(configuration))
       mod.initialize_class
     end
     
     def self.initialize_class
-      @conf = ConfigurationDsl::Actualizer.new(self, configuration, Task::Configuration::PROCS)
+      @conf = TaskTempest::Configuration.new(configuration, self, :evaled => Task::Configuration::EVALED)
+      @conf = @conf.actualize_all
       @book = Book.new(&conf.report_stats)
       @last_report_time = Time.now
     end
@@ -95,7 +96,15 @@ module TaskTempest #:nodoc:
     end
     
     def to_message #:nodoc:
-      [id, self.class.name, *args]
+      
+      # Anonymous class's name is nil in 1.9, "" in 1.8.
+      if self.class.name == "" or self.class.name == nil
+        class_name = self.class.inspect
+      else
+        class_name = self.class.name
+      end
+      
+      [id, class_name, *args]
     end
     
     def format_log(message) #:nodoc:

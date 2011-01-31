@@ -1,5 +1,7 @@
 require "pathname"
-require "task_tempest/configuration_dsl"
+
+require "configuration_dsl"
+
 require "task_tempest/queue"
 
 module TaskTempest #:nodoc:

@@ -37,7 +37,6 @@ class TestCoverage < Test::Unit::TestCase
     mock(tempest.dispatcher).consume{ raise error_class, "dequeue failed" }
     tempest.dispatcher.start
     while %w[sleep run].include?(tempest.dispatcher.thread.status)
-      puts tempest.dispatcher.thread.status
       sleep(0.01)
     end
     

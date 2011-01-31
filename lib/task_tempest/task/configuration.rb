@@ -34,13 +34,9 @@ module TaskTempest #:nodoc:
         :after_timeout => Proc.new{ |task, e| nil }
       } #:nodoc:
       
-      # These are options whose values should *not* lazily evaluated.
-      PROCS = [
-        :report_stats,
-        :report_callback,
-        :after_success,
-        :after_failure,
-        :after_timeout
+      # These are options whose values should lazily evaluated.
+      EVALED = [
+        :timeout
       ] #:nodoc:
       
       # Maximum amount of time a task should be a allowed to run before it is abored.
