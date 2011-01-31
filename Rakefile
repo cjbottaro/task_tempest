@@ -11,6 +11,7 @@ begin
     gem.homepage = "http://github.com/cjbottaro/task_tempest"
     gem.authors = ["Christopher J. Bottaro"]
     gem.add_dependency 'col', "~> 1.0"
+    gem.add_dependency 'configuration_dsl', "~> 0.1"
     gem.add_dependency 'thread_storm', "~> 0.7"
     # gem.add_development_dependency "thoughtbot-shoulda", ">= 0"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
@@ -39,8 +40,6 @@ rescue LoadError
     abort "RCov is not available. In order to run rcov, you must: sudo gem install spicycode-rcov"
   end
 end
-
-task :test => :check_dependencies
 
 task :default => :test
 
