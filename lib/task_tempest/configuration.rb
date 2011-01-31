@@ -13,23 +13,23 @@ module TaskTempest
       @object = object
       
       # We have to normalize members because of Ruby version differences.
-      members = configuration.members.collect{ |member| member.to_sym }
+      @members = configuration.members.collect{ |member| member.to_sym }
       
       if options[:literal]
         @literal = options[:literal]
       else
-        @literal = members.to_set - options[:evaled].to_set
+        @literal = @members.to_set - options[:evaled].to_set
       end
     end
     
     def actualize_all
       
-      hash = configuration.members.inject({}) do |memo, member|
+      hash = @members.inject({}) do |memo, member|
         # We can't use #send here because it will try to call private methods.
         # This is a problem when trying to actualize the :timeout configuration
         # for tasks.  Also, instance_eval("#{member}") will try to call private
         # methods.  Hence why it is the way it is.
-        memo[member.to_sym] = instance_eval("self.#{member}")
+        memo[member] = instance_eval("self.#{member}")
         memo
       end
       
@@ -60,11 +60,7 @@ module TaskTempest
   
     def method_missing(name, *args, &block)
       
-      # In 1.8 Struct#members returns an array of strings.
-      # In 1.9, it returns an array of symbols.
-      members = configuration.members.collect{ |member| member.to_sym }
-      
-      if members.include?(name)
+      if @members.include?(name)
         value_for(name)
       else
         super
