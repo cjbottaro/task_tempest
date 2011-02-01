@@ -3,7 +3,7 @@ require 'helper'
 class TestBootstrapper < Test::Unit::TestCase
   
   def test_log_files
-    system("rm *.log")
+    system("rm *.log") unless Dir.glob("*.log").empty?
     
     tempest_class.configure do
       log_file "test.log"
