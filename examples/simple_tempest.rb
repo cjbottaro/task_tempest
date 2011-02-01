@@ -7,13 +7,6 @@ end
 
 class SimpleTask < TaskTempest::Task
   
-  @lock = Monitor.new
-  class << self
-    def synchronize(&block)
-      @lock.synchronize(&block)
-    end
-  end
-  
   configure do
     timeout 1
     report_stats do
@@ -36,8 +29,6 @@ class SimpleTask < TaskTempest::Task
   end
   
   def start(n)
-    self.class.synchronize{ sleep }
-    
     if n < 0.33
       sleep(n)
       logger.info "I slept for #{n} seconds!"
@@ -66,7 +57,5 @@ end
   task = SimpleTask.new(rand)
   SimpleTempest.submit(task)
 end
-
-SimpleTempest.configuration.name = "simple_tempest-1"
 
 SimpleTempest.run

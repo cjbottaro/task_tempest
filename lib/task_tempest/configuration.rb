@@ -6,7 +6,7 @@ require "task_tempest/queue"
 
 module TaskTempest
   
-  class Configuration
+  class Configuration #:nodoc:
     attr_reader :configuration, :object
     
     extend Memoizer

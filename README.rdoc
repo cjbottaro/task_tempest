@@ -4,7 +4,13 @@ Framework for building threaded asynchronous job processors.
 
 == Description
 
-task_tempest basically lets you build glorified loops, reading messages from a queue and dispatching them to classes to handle.
+task_tempest basically lets you build glorified loops, reading messages from a queue and dispatching them to classes to handle.  In short, it's just another background job processor for Ruby.
+
+task_tempest is based on the idea of a thread pool; each background job is executed on a thread.  This can achieve high throughput, but your code will need to be threadsafe.
+
+task_tempest is queue agnostic; you can use whatever queue you like, as long as it supports three operations:  enqueue, dequeue and size.
+
+task_tempest is used in production at {Onespot}[http://www.onespot.com] and processes over 1 million jobs a day.
 
 == Quickstart
 

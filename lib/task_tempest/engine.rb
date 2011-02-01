@@ -195,7 +195,7 @@ module TaskTempest #:nodoc:
     end
     
     # This is to ease testing.
-    LOOP_ITERATIONS_ROLLOVER = 1_000_000
+    LOOP_ITERATIONS_ROLLOVER = 1_000_000 #:nodoc:
     def increment #:nodoc:
       if @loop_iterations == LOOP_ITERATIONS_ROLLOVER
         @loop_iterations = 0
