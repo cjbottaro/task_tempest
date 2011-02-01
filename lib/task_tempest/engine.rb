@@ -64,7 +64,7 @@ module TaskTempest #:nodoc:
     
     # Same as <tt>TaskTempest::Engine.new.run</tt>
     def self.run
-      new.run
+      new.tap{ |me| me.run }
     end
     
     # Create a new TaskTempest::Engine instance.  The +before_initialize+ callbacks are run before

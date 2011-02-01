@@ -31,6 +31,16 @@ class TestCoverage < Test::Unit::TestCase
     assert_raises(SignalException){ tempest.run_loop }
   end
   
+  def test_shutdown_timeout
+    tempest_class.configure{ shutdown_timeout 0.01 }
+    tempest = tempest_class.new
+    mock(dispatcher = Object.new).stop!{ sleep }
+    stub(tempest).dispatcher{ dispatcher }
+    stub.proxy(tempest.logger).info
+    tempest.shutdown
+    assert_received(tempest.logger){ |logger| logger.info(/exceeded/) }
+  end
+  
   def test_check_dispatcher_health
     error_class = Class.new(RuntimeError)
     tempest = tempest_class.new
@@ -61,5 +71,13 @@ class TestCoverage < Test::Unit::TestCase
     assert task.execution.callback_exception?
     assert_raises(error_class){ tempest.health_check }
   end
-
+  
+  def test_submit
+    task = task_class.new
+    message = task.to_message
+    mock(task).to_message{ message }
+    mock(tempest_class.conf.queue).enqueue(message)
+    tempest_class.submit(task)
+  end
+  
 end

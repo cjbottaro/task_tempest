@@ -23,19 +23,11 @@ module TaskTempest #:nodoc:
       
       resident, virtual = output.split.collect{ |s| s.strip.to_i * KB }
       
-      if resident > MB
-        resident /= MB
-        resident = "#{resident}M"
-      else
-        resident = "#{resident}K"
-      end
+      resident /= MB
+      resident = "#{resident}M"
       
-      if virtual > MB
-        virtual /= MB
-        virtual = "#{virtual}M"
-      else
-        virtual = "#{virtual}K"
-      end
+      virtual /= MB
+      virtual = "#{virtual}M"
       
       memory.tap do |memory|
         memory[:resident] = resident

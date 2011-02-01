@@ -1,12 +1,15 @@
 require "pathname"
 require "set"
 
+require "task_tempest/active_support"
 require "task_tempest/queue"
 
 module TaskTempest
   
   class Configuration
     attr_reader :configuration, :object
+    
+    extend Memoizer
     
     def initialize(configuration, object, options = {})
       @configuration = configuration
@@ -18,7 +21,7 @@ module TaskTempest
       if options[:literal]
         @literal = options[:literal]
       else
-        @literal = @members.to_set - options[:evaled].to_set
+        @literal = @members.to_set - (options[:evaled] || []).to_set
       end
     end
     
@@ -37,20 +40,18 @@ module TaskTempest
     end
     
     def log_file
-      @log_file ||= begin
-        log_file = actualize(configuration.log_file)
-        log_file = "#{root}/#{log_file}" if log_file.kind_of?(String) and Pathname.new(log_file).relative?
-        log_file
-      end
+      log_file = actualize(configuration.log_file)
+      log_file = "#{root}/#{log_file}" if log_file.kind_of?(String) and Pathname.new(log_file).relative?
+      log_file
     end
+    memoize :log_file
     
     def task_log_file
-      @task_log_file ||= begin
-        log_file = actualize(configuration.task_log_file)
-        log_file = "#{root}/#{log_file}" if log_file.kind_of?(String) and Pathname.new(log_file).relative?
-        log_file
-      end
+      log_file = actualize(configuration.task_log_file)
+      log_file = "#{root}/#{log_file}" if log_file.kind_of?(String) and Pathname.new(log_file).relative?
+      log_file
     end
+    memoize :task_log_file
     
     def queue
       @queue ||= TaskTempest::Queue.new(actualize(configuration.queue))

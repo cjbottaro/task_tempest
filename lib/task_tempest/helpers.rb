@@ -20,19 +20,5 @@ module TaskTempest #:nodoc:
       end
     end
     
-    def copy_struct(struct)
-      struct and begin
-        values = struct.values.collect do |v|
-          case v
-          when Hash, Array
-            v.dup
-          else
-            v
-          end
-        end
-        struct.class.new(*values)
-      end
-    end
-    
   end
 end

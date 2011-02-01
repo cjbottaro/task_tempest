@@ -59,7 +59,6 @@ module TaskTempest #:nodoc:
         # Callbacks.
         :before_initialize => [],
         :after_initialize => [],
-        :after_exception => [],
       
         # Reporting.
         :report_interval => 10*60, # 10 mins.
@@ -76,7 +75,6 @@ module TaskTempest #:nodoc:
         :task_log_format,
         :before_initialize,
         :after_initialize,
-        :after_exception,
         :report_callback
       ] #:nodoc:
     
@@ -95,7 +93,7 @@ module TaskTempest #:nodoc:
       # Defaults to Dir.pwd.
       # Accepts a block for lazy evaulation.
       def root(path = nil, &block)
-        configuration.root_dir = path || block
+        configuration.root = path || block
       end
     
       # How many worker threads to spawn. Effectively how many tasks can be run concurrently.
@@ -222,15 +220,6 @@ module TaskTempest #:nodoc:
       # Multiple blocks can be defined by calling this more than once.
       def after_initialize(&block)
         configuration.after_initialize << block
-      end
-    
-      # call-seq:
-      #   after_exception{ |e, logger| ... }
-      #
-      # Define a block to be called after an unexpected exception has been caught.
-      # Multiple blocks can be defined by calling this more than once.
-      def after_exception(&block)
-        configuration.after_exception << block
       end
     
       #############
