@@ -52,7 +52,7 @@ module TaskTempest #:nodoc:
     end
     
     def threads
-      "%d/%d/%s" % [raw[:threads].values.min, raw[:threads].values.max, round(avg(raw[:threads].values))]
+      "%d/%d/%s" % [raw[:primatives].values.min, raw[:primatives].values.max, round(avg(raw[:primatives].values))]
     end
     
     def throughput

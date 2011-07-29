@@ -38,10 +38,11 @@ module TaskTempest #:nodoc:
         :name => Proc.new{ self.name },
         :root => Proc.new{ Dir.pwd },
         :threads => 10,
+        :fibers => nil,
       
         # Timeouts.
-        :timeout_method => ThreadStorm::DEFAULTS[:timeout_method],
-        :timeout_exception => ThreadStorm::DEFAULTS[:timeout_exception],
+        :timeout_method => Timeout.method(:timeout),
+        :timeout_exception => Timeout::Error,
         :shutdown_timeout => nil,
       
         # Logging.
@@ -101,6 +102,12 @@ module TaskTempest #:nodoc:
       # Accepts a block for lazy evaluation.
       def threads(count = nil, &block)
         configuration.threads = count || block
+      end
+
+      # How many worker fibers to spawn.  If this value is set, then fibers will be used
+      # instead of threads and we're going to run in the EventMachine reactor.
+      def fibers(count = nil, &block)
+        configuration.fibers = count || block
       end
     
       ############

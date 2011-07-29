@@ -15,7 +15,7 @@ class TestDispatcher < Test::Unit::TestCase
   end
   
   def test_does_not_automatically_start
-    assert_nil dispatcher.thread
+    assert ! dispatcher.started?
   end
   
   def test_start_stop

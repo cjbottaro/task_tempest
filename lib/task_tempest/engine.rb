@@ -89,9 +89,15 @@ module TaskTempest #:nodoc:
       
       @task_classes = Set.new
       @task_classes_lock = Mutex.new
+
+      # Override timeout method/exception if in fibered mode.
+      if fibered?
+        conf.timeout_method = FiberStorm.method(:timeout)
+        conf.timeout_exception = FiberStorm::TimeoutError
+      end
       
       logger.info "main thread: #{Thread.current.inspect}"
-      logger.info "dispatcher thread: #{dispatcher.thread.inspect}"
+      logger.info "dispatcher thread: #{dispatcher.primative.inspect}"
       
       conf.after_initialize.each{ |callback| instance_exec(logger, &callback) }
     end
@@ -100,20 +106,55 @@ module TaskTempest #:nodoc:
     def conf
       self.class.conf
     end
+
+    # Returns true if we're running in fibered mode.
+    def fibered?
+      !!conf.fibers
+    end
+
+    # Returns true if we're running in threaded mode.
+    def threaded?
+      !fibered?
+    end
     
     # Begin the run loop which polls the queue indefinitely, dispatching tasks.  Several exceptions can
     # stop the tempest gracefully:  Interrupt, SystemExit, SignalException("SIGTERM").
     def run
-      dispatcher.start
-      run_loop while not stop?
-      shutdown
+      # Install signal handlers.
+      Signal.trap("INT"){ logger.info "SIGINT detected"; stop! }
+      Signal.trap("TERM"){ logger.info "SIGTERM detected"; stop! }
+
+      run_wrap do
+        dispatcher.start
+        run_loop while not stop?
+        shutdown
+      end
+    end
+
+    # Wrap the run body in EM.run+fiber if needed.
+    def run_wrap #:nodoc:
+      if fibered?
+        EM.run do
+          logger.info "EventMachine reactor started"
+          Fiber.new do
+            yield
+            EM.stop
+          end.resume
+        end
+      else
+        yield
+      end
     end
     
     def run_loop #:nodoc:
       health_check
       report_to_log if should_report?
       task_reporting
-      sleep(conf.pulse_delay)
+      if fibered?
+        FiberStorm.sleep(conf.pulse_delay)
+      else
+        sleep(conf.pulse_delay)
+      end
       increment
     rescue *SHUTDOWN_EXCEPTIONS => e
       raise if e.class == SignalException and e.message != "SIGTERM"
@@ -135,7 +176,7 @@ module TaskTempest #:nodoc:
       begin
         conf.timeout_method.call(conf.shutdown_timeout) do
           dispatcher.stop!
-          dispatcher.thread.join
+          dispatcher.join
           storm.join
           storm.shutdown
         end
@@ -178,8 +219,8 @@ module TaskTempest #:nodoc:
         when "timeout"
           stats[:timeout] << execution.duration
         end
-        stats[:threads][execution.thread] ||= 0
-        stats[:threads][execution.thread] += 1
+        stats[:primatives][execution.primative] ||= 0
+        stats[:primatives][execution.primative] += 1
       end
       
       case status

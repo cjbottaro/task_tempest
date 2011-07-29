@@ -1,5 +1,4 @@
 require "logger"
-require "thread_storm"
 
 require "task_tempest/active_support"
 require "task_tempest/book"
@@ -43,13 +42,26 @@ module TaskTempest #:nodoc:
     memoize :task_logger
     
     def storm
-      options = { :size => conf.threads,
+      if conf.fibers
+        require "fiber_storm"
+        size = conf.fibers
+        klass = FiberStorm
+        concurrency = "fiber"
+      else
+        require "thread_storm"
+        size = conf.threads
+        klass = ThreadStorm
+        concurrency = "thread"
+      end
+      options = { :size => size,
                   :reraise => false,
                   :execute_blocks => true,
                   :timeout_method => conf.timeout_method,
+                  :em_run => false,
+                  :em_stop => false,
                   :started_callback => @options[:started_callback],
                   :finished_callback => @options[:finished_callback] }
-      ThreadStorm.new(options).tap{ logger.info "thread pool initialized" }
+      klass.new(options).tap{ logger.info "#{concurrency} pool initialized" }
     end
     memoize :storm
     
@@ -67,7 +79,7 @@ module TaskTempest #:nodoc:
         { :failure => [],
           :success => [],
           :timeout => [],
-          :threads => storm.threads.inject({}){ |memo, thread| memo[thread] = 0; memo } }
+          :primatives => storm.primatives.inject({}){ |memo, primative| memo[primative] = 0; memo } }
       end.tap{ logger.info "reporting initialized" }
     end
     memoize :book

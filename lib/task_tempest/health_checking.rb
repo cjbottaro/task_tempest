@@ -7,7 +7,7 @@ module TaskTempest #:nodoc:
     end
     
     def check_dispatcher_health
-      dispatcher.thread.join if dispatcher.died?
+      dispatcher.join if dispatcher.died?
     rescue StandardError => e
       logger.fatal format_exception(e)
       raise

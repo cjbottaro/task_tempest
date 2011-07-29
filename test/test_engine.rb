@@ -1,6 +1,6 @@
 require "helper"
 
-class TestCoverage < Test::Unit::TestCase
+class TestEngine < Test::Unit::TestCase
   
   def test_run
     tempest = tempest_class.new
@@ -46,7 +46,7 @@ class TestCoverage < Test::Unit::TestCase
     tempest = tempest_class.new
     mock(tempest.dispatcher).consume{ raise error_class, "dequeue failed" }
     tempest.dispatcher.start
-    while %w[sleep run].include?(tempest.dispatcher.thread.status)
+    while %w[sleep run].include?(tempest.dispatcher.primative.status)
       sleep(0.01)
     end
     

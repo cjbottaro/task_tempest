@@ -3,7 +3,7 @@ require "logger"
 module TaskTempest #:nodoc:
   class Dispatcher #:nodoc:
     
-    attr_reader :storm, :queue, :options, :thread, :message, :logger
+    attr_reader :storm, :queue, :options, :message, :logger
     
     DEFAULTS = {
       :logger         => Logger.new(STDOUT),
@@ -17,16 +17,59 @@ module TaskTempest #:nodoc:
       @storm   = storm
       @queue   = queue
       @logger  = @options[:logger]
+      @started = false
+
+      if threaded?
+        @thread = Thread.new{ Thread.stop; @started = true; run }.tap{ Thread.pass }
+      else
+        @fiber = Fiber.new{ @started = true; run }
+      end
       
       start if @options[:start]
     end
+
+    def fibered?
+      @storm.instance_of?(FiberStorm)
+    end
+    
+    def threaded?
+      defined?(ThreadStorm) and @storm.instance_of?(ThreadStorm)
+    end
+
+    def primative
+      @thread or @fiber
+    end
+
+    def started?
+      @started
+    end
     
     def died?
-      @thread and @thread.status.nil?
+      if threaded?
+        @thread.status.nil?
+      else
+        not @fiber.alive?
+      end
     end
     
     def start
-      @thread = Thread.new{ run }
+      if threaded?
+        @thread.run
+      else
+        @fiber.resume
+      end
+    end
+
+    def join
+      if threaded?
+        @thread.join
+      else
+        while @fiber.alive?
+          fiber = Fiber.current
+          EM.next_tick{ fiber.resume }
+          Fiber.yield
+        end
+      end
     end
     
     def stop?
@@ -74,6 +117,16 @@ module TaskTempest #:nodoc:
       task.execution = storm.new_execution(task){ task.run }
       task.execution.options[:timeout] = task_class.conf.timeout
       task
+    end
+
+  private
+
+    def sleep(duration)
+      if threaded?
+        Kernel.sleep(duration)
+      else
+        FiberStorm.sleep(duration)
+      end
     end
     
   end
