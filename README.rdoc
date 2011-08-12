@@ -135,7 +135,9 @@ The +fibers+ option puts +task_tempest+ into fibered mode and also defines the s
     ...
   end
 
-Now when +FiberedTempest.run+ is called, The EventMachine reactor will be started and each task will be dispatched in a fiber.
+Now when +FiberedTempest.run+ is called, The EventMachine reactor will be started and each task will be dispatched on a fiber.
+
+If you run in fibered mode, you need to install +fiber_storm+.
 
 == Daemonizing
 
@@ -160,7 +162,7 @@ See the {Daemons rdoc}[http://daemons.rubyforge.org/] for more info.
 
 == Rails
 
-Often times, +task_tempest+ is used as an asynchronous task processor for a Rails app.  In these cases, you probably want to load the Rails environment, so you can have access to models, configuration, etc.
+When +task_tempest+ is used as an asynchronous task processor for a Rails app, you probably want to load the Rails environment so you can have access to models, configuration, etc.
 
 You can load the Rails environment however you like, but if you choose to load it in one of +task_tempest+'s initialization callbacks, then there are some caveats to be aware of.
 
