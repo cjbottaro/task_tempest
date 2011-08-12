@@ -1,4 +1,5 @@
 require "helper"
+require "thread_storm"
 
 class TestDispatcher < Test::Unit::TestCase
   attr_reader :dispatcher
@@ -38,22 +39,16 @@ class TestDispatcher < Test::Unit::TestCase
     assert_equal "test", dispatcher.message
   end
   
-  def test_task
-    task_class.configure{ timeout 1.75 }
+  def test_prepare
     dispatcher.instance_variable_set("@message", [nil, task_class, 1, 2, 3])
-    task = dispatcher.task
-    assert_equal task_class, task.class
+    task = dispatcher.prepare
+    assert_equal task_class, task.task_class
     assert_equal [1, 2, 3], task.args
-    assert_equal 1.75, task.execution.options[:timeout]
   end
   
   def test_dispatch
     dispatcher.instance_variable_set("@message", [nil, task_class, "fd18a"])
-    mock(dispatcher.storm).execute(anything) do |execution|
-      task = execution.args.first
-      assert_equal task_class, task.class
-      assert_equal "fd18a", task.args.first
-    end
+    mock(dispatcher.storm).execute(anything)
     dispatcher.dispatch
   end
   

@@ -1,7 +1,6 @@
 require "logger"
 
-require "task_tempest/active_support"
-require "task_tempest/book"
+require "task_tempest/memoizer"
 require "task_tempest/dispatcher"
 
 module TaskTempest #:nodoc:
@@ -10,8 +9,9 @@ module TaskTempest #:nodoc:
     
     extend Memoizer
     
-    def initialize(conf, options = {})
+    def initialize(conf, queue, options = {})
       @conf = conf
+      @queue = queue
       @options = options
     end
     
@@ -56,7 +56,6 @@ module TaskTempest #:nodoc:
       options = { :size => size,
                   :reraise => false,
                   :execute_blocks => true,
-                  :timeout_method => conf.timeout_method,
                   :em_run => false,
                   :em_stop => false,
                   :started_callback => @options[:started_callback],
@@ -66,23 +65,15 @@ module TaskTempest #:nodoc:
     memoize :storm
     
     def dispatcher
-      options = { :logger        => logger,
-                  :task_logger   => task_logger,
-                  :poll_interval => conf.queue_poll_interval,
-                  :delayed       => true }
-      Dispatcher.new(storm, conf.queue, options).tap{ logger.info "dispatcher initialized" }
+      options = { :logger             => logger,
+                  :task_logger        => task_logger,
+                  :poll_interval      => conf.queue_poll_interval,
+                  :timeout_method     => conf.timeout_method,
+                  :timeout_exception  => conf.timeout_exception,
+                  :start              => false }
+      Dispatcher.new(storm, @queue, options).tap{ logger.info "dispatcher initialized" }
     end
     memoize :dispatcher
-    
-    def book
-      Book.new do
-        { :failure => [],
-          :success => [],
-          :timeout => [],
-          :primatives => storm.primatives.inject({}){ |memo, primative| memo[primative] = 0; memo } }
-      end.tap{ logger.info "reporting initialized" }
-    end
-    memoize :book
     
   end
 end

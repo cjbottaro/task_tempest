@@ -14,9 +14,8 @@ module TaskTempest #:nodoc:
     end
     
     def check_execution_health
-      storm.clear_executions(:finished?).each do |execution|
-        raise execution.callback_exception.values.first if execution.callback_exception?
-      end
+      storm.clear_executions(:finished?)
+      logger.warn "pool executions larger than pool size" if storm.executions.length > pool_size
     end
     
   end

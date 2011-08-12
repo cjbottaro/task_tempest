@@ -21,21 +21,12 @@ class TestEngine < Test::Unit::TestCase
     assert_nothing_raised{ thread.join }
   end
   
-  def test_shutdown_exceptions
-    tempest = tempest_class.new
-    mock(tempest).health_check{ raise SystemExit, "shutdown" }
-    tempest.run_loop
-    assert tempest.stop?
-    
-    mock(tempest).health_check{ raise SignalException, "USR1" }
-    assert_raises(SignalException){ tempest.run_loop }
-  end
-  
   def test_shutdown_timeout
     tempest_class.configure{ shutdown_timeout 0.01 }
     tempest = tempest_class.new
     mock(dispatcher = Object.new).stop!{ sleep }
     stub(tempest).dispatcher{ dispatcher }
+    mock(Process).kill("KILL", anything)
     stub.proxy(tempest.logger).info
     tempest.shutdown
     assert_received(tempest.logger){ |logger| logger.info(/exceeded/) }
@@ -46,7 +37,7 @@ class TestEngine < Test::Unit::TestCase
     tempest = tempest_class.new
     mock(tempest.dispatcher).consume{ raise error_class, "dequeue failed" }
     tempest.dispatcher.start
-    while %w[sleep run].include?(tempest.dispatcher.primative.status)
+    while %w[sleep run].include?(tempest.dispatcher.primitive.status)
       sleep(0.01)
     end
     
@@ -55,29 +46,47 @@ class TestEngine < Test::Unit::TestCase
   end
   
   def test_check_execution_health
-    error_class = Class.new(RuntimeError)
-    task_class.class_eval do
-      def start; nil; end
+
+    # Create tempest class.
+    tempest_class.configure do
+      threads 5
     end
+
+    # Create tempest.
     tempest = tempest_class.new
-    
-    mock(tempest).record{ raise error_class, "oops" }
-    
-    task = tempest.dispatcher.task [nil, task_class]
-    task.execution.options[:finished_callback] = tempest.method(:task_finished)
-    tempest.storm.executions << task.execution
-    
-    task.execution.execute
-    assert task.execution.callback_exception?
-    assert_raises(error_class){ tempest.health_check }
+
+    # Add 3 finished executions to the storm.
+    3.times do
+      execution = tempest.storm.new_execution
+      mock(execution).finished?{ true }
+      tempest.storm.executions << execution
+    end
+
+    # Add 7 not finished executions to the storm.
+    7.times do
+      execution = tempest.storm.new_execution
+      mock(execution).finished?{ false }
+      tempest.storm.executions << execution
+    end
+
+    # Set up some mocks and expectations.
+    mock(tempest.logger).warn("pool executions larger than pool size")
+
+    # Assertion before.
+    assert_equal 10, tempest.storm.executions.length
+
+    # Action.
+    tempest.check_execution_health
+
+    # Assertion after.
+    assert_equal 7, tempest.storm.executions.length
+
   end
   
   def test_submit
-    task = task_class.new
-    message = task.to_message
-    mock(task).to_message{ message }
-    mock(tempest_class.conf.queue).enqueue(message)
-    tempest_class.submit(task)
+    message = TaskTempest::TaskFacade.message(task_class)
+    mock(tempest_class.queue).enqueue(message)
+    tempest_class.submit(task_class)
   end
   
 end

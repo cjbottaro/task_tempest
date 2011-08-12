@@ -10,10 +10,10 @@ class TestBootstrapper < Test::Unit::TestCase
       task_log_file "test.task.log"
     end
     
-    assert_equal "#{tempest_class.conf.root}/test.log", tempest_class.conf.log_file
-    assert_equal "#{tempest_class.conf.root}/test.task.log", tempest_class.conf.task_log_file
+    assert_equal "#{tempest_class.conf.root}/test.log", tempest_class.log_file
+    assert_equal "#{tempest_class.conf.root}/test.task.log", tempest_class.task_log_file
     
-    bootstrapper = TaskTempest::Bootstrapper.new(tempest_class.conf)
+    bootstrapper = TaskTempest::Bootstrapper.new(tempest_class.conf, tempest_class.queue)
     assert bootstrapper.logger.kind_of?(Logger)
     assert bootstrapper.task_logger.kind_of?(Logger)
     

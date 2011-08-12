@@ -13,6 +13,5 @@ module TaskTempest
   end #:nodoc:
 end
 
-require "task_tempest/active_support"
 require "task_tempest/engine"
 require "task_tempest/task"

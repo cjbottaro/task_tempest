@@ -1,11 +1,11 @@
 require "configuration_dsl"
 
-require "task_tempest/configuration"
 require "task_tempest/bootstrapper"
 require "task_tempest/engine/configuration"
 require "task_tempest/error_handling"
 require "task_tempest/health_checking"
-require "task_tempest/reporting"
+require "task_tempest/queue"
+require "task_tempest/task_facade"
 
 module TaskTempest #:nodoc:
   
@@ -28,43 +28,82 @@ module TaskTempest #:nodoc:
     attr_reader :task_logger    #:nodoc:
     attr_reader :storm          #:nodoc:
     attr_reader :dispatcher     #:nodoc:
-    attr_reader :book           #:nodoc:
 
-    extend Helpers
     extend ConfigurationDsl
     include ErrorHandling
     include HealthChecking
-    include Reporting
     
-    configure_with(Configuration) do
-      initialize_class
-    end
-    
-    def self.inherited(mod) #:nodoc:
-      mod.initialize_class
-    end
-    
-    def self.initialize_class #:nodoc:
-      @conf = TaskTempest::Configuration.new configuration,
-                                             self,
-                                             :literal => Configuration::LITERAL
-      @conf = @conf.actualize_all
+    configure_with(Configuration)
+    configure do
+      name{ self.name }
+      root{ Dir.pwd }
+      timeout_method do
+        if fibered?
+          FiberStorm.method(:timeout)
+        else
+          ThreadStorm.method(:timeout)
+        end
+      end
+      timeout_exception do
+        if fibered?
+          FiberStorm::TimeoutError
+        else
+          Timeout::Error
+        end
+      end
+
+      log_file do
+        "#{conf.name}.log"
+      end
+
+      log_format TaskTempest::LOG_FORMAT
+
+      task_log_file do
+        "#{conf.name}.task.log"
+      end
+
+      task_log_format TaskTempest::LOG_FORMAT
     end
     
     # The configuration as a struct-like object.
     def self.conf
-      @conf
+      configuration
+    end
+
+    # Returns true if running in fibered mode.
+    def self.fibered?
+      !!conf.fibers
+    end
+
+    def self.queue
+      @queue ||= Queue.new(conf.queue)
     end
     
     # Submit a task to the queue.
     # +task+ must be a kind of TaskTempest::Task.
-    def self.submit(task)
-      conf.queue.enqueue(task.to_message)
+    def self.submit(task_class, *args)
+      queue.enqueue(TaskFacade.message(task_class, *args))
     end
     
     # Same as <tt>TaskTempest::Engine.new.run</tt>
     def self.run
       new.tap{ |me| me.run }
+    end
+
+    def self.log_file
+      if Pathname.new(conf.log_file).relative?
+        conf.root + "/" + conf.log_file
+      else
+        conf.log_file
+      end
+    end
+
+    def self.task_log_file
+      if Pathname.new(conf.task_log_file).relative?
+        conf.root + "/" + conf.task_log_file
+      else
+        conf.task_log_file
+      end
     end
     
     # Create a new TaskTempest::Engine instance.  The +before_initialize+ callbacks are run before
@@ -73,31 +112,26 @@ module TaskTempest #:nodoc:
     def initialize
       conf.before_initialize.each{ |callback| instance_exec(&callback) }
       
+      if fibered?
+        require "fiber_storm"
+      else
+        require "thread_storm"
+      end
       require "task_tempest/recursive_mutex_hack" if conf.recursive_mutex_hack
       
-      bootstrapper = Bootstrapper.new conf, :started_callback => method(:task_started),
-                                            :finished_callback => method(:task_finished)
+      bootstrapper = Bootstrapper.new conf, queue, :started_callback => method(:task_started),
+                                                   :finished_callback => method(:task_finished)
       
       @logger      = bootstrapper.logger
       @task_logger = bootstrapper.task_logger
       @storm       = bootstrapper.storm
-      @book        = bootstrapper.book
       @dispatcher  = bootstrapper.dispatcher
       
       @last_report_time = Time.now
       @loop_iterations  = 0
       
-      @task_classes = Set.new
-      @task_classes_lock = Mutex.new
-
-      # Override timeout method/exception if in fibered mode.
-      if fibered?
-        conf.timeout_method = FiberStorm.method(:timeout)
-        conf.timeout_exception = FiberStorm::TimeoutError
-      end
-      
       logger.info "main thread: #{Thread.current.inspect}"
-      logger.info "dispatcher thread: #{dispatcher.primative.inspect}"
+      logger.info "dispatcher #{primitive_name}: #{dispatcher.primitive.inspect}"
       
       conf.after_initialize.each{ |callback| instance_exec(logger, &callback) }
     end
@@ -116,12 +150,27 @@ module TaskTempest #:nodoc:
     def threaded?
       !fibered?
     end
+
+    # How many threads or fibers are in the pool.
+    def pool_size
+      fibered? ? conf.fibers : conf.threads
+    end
+
+    # Returns a string denoting the concurrency primitive type.
+    def primitive_name #:nodoc:
+      fibered? ? "fiber" : "thread"
+    end
+
+    def queue
+      self.class.queue
+    end
     
-    # Begin the run loop which polls the queue indefinitely, dispatching tasks.  Several exceptions can
-    # stop the tempest gracefully:  Interrupt, SystemExit, SignalException("SIGTERM").
+    # Begin the run loop which polls the queue indefinitely, dispatching tasks.
+    # There are several ways to stop the run loop: calling #stop! or sending by
+    # the following signals: INT, TERM.
     def run
       # Install signal handlers.
-      Signal.trap("INT"){ logger.info "SIGINT detected"; stop! }
+      Signal.trap("INT") { logger.info "SIGINT detected";  stop! }
       Signal.trap("TERM"){ logger.info "SIGTERM detected"; stop! }
 
       run_wrap do
@@ -148,18 +197,12 @@ module TaskTempest #:nodoc:
     
     def run_loop #:nodoc:
       health_check
-      report_to_log if should_report?
-      task_reporting
-      if fibered?
-        FiberStorm.sleep(conf.pulse_delay)
-      else
-        sleep(conf.pulse_delay)
-      end
+      sleep(conf.pulse_delay)
+    rescue StandardError => e
+      logger.fatal(format_exception(e))
+      raise
+    ensure
       increment
-    rescue *SHUTDOWN_EXCEPTIONS => e
-      raise if e.class == SignalException and e.message != "SIGTERM"
-      logger.info "#{e.class} #{e.message}".strip + " detected"
-      stop!
     end
     
     def stop? #:nodoc:
@@ -170,69 +213,59 @@ module TaskTempest #:nodoc:
     def stop!
       @stop = true
     end
+
+    def dead? #:nodoc:
+      !!@dead
+    end
+
+    def die! #:nodoc:
+      @dead = true
+      Process.kill("KILL", Process.pid) # Seriously...
+    end
     
     def shutdown #:nodoc:
       logger.info "shutting down..."
-      begin
-        conf.timeout_method.call(conf.shutdown_timeout) do
-          dispatcher.stop!
-          dispatcher.join
-          storm.join
-          storm.shutdown
-        end
-      rescue conf.timeout_exception => e
-        logger.info "shutdown timeout exceeded"
+      conf.timeout_method.call(conf.shutdown_timeout) do
+        dispatcher.stop!
+        dispatcher.join
+        storm.join
+        storm.shutdown if storm.respond_to?(:shutdown)
       end
       logger.info "shutdown"
+    rescue conf.timeout_exception => e
+      logger.info "shutdown timeout exceeded"
+      die!
     end
     
     def task_started(execution) #:nodoc:
       task = execution.args.first
-      logger.info task.format_log("started")
-      
-      # We need to keep track of all the task classes used so we can do reporting.
-      @task_classes_lock.synchronize{ @task_classes << task.class }
+      logger.info task.format_log_message("started")
     end
     
     def task_finished(execution) #:nodoc:
       task = execution.args.first
-      if execution.failure?
-        task.logger.fatal format_exception(execution.exception)
-        status = "failure"
-      elsif execution.timeout?
-        task.logger.fatal format_exception(execution.exception)
-        status = "timeout"
-      else
-        status = "success"
-      end
-      
-      if !task.callback(status)
-        logger.error task.format_log(Col("exception").red.to_s + " in after_#{status}")
-      end
-      
-      record do |stats|
-        case status
-        when "failure"
-          stats[:failure] << execution.duration
-        when "success"
-          stats[:success] << execution.duration
-        when "timeout"
-          stats[:timeout] << execution.duration
-        end
-        stats[:primatives][execution.primative] ||= 0
-        stats[:primatives][execution.primative] += 1
-      end
-      
-      case status
+
+      case task.status
       when "failure"
-        status = Col(status).red
+        status = Col(task.status).red
       when "success"
-        status = Col(status).green
+        status = Col(task.status).green
       when "timeout"
-        status = Col(status).yellow
+        status = Col(task.status).yellow
+      else
+        status = Col(task.status).magenta
       end
+
+      # If we're dead, then override status as aborted.
+      status = Col("aborted").magenta if dead?
       
-      logger.info task.format_log("#{status} #{execution.duration}")
+      logger.info task.format_log_message("#{status} #{execution.duration}")
+
+      # Let them know if a callback failed.
+      if task.callback_status
+        status = Col("failure").cyan
+        logger.warn task.format_log_message("#{status} in callback")
+      end
     end
     
     # This is to ease testing.
@@ -242,6 +275,15 @@ module TaskTempest #:nodoc:
         @loop_iterations = 0
       else
         @loop_iterations += 1
+      end
+    end
+
+    # Sleep that is aware of what mode we're running.
+    def sleep(n)
+      if fibered?
+        FiberStorm.sleep(n)
+      else
+        Kernel.sleep(n)
       end
     end
     

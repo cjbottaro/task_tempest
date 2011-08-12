@@ -1,10 +1,19 @@
-1.0.0
- - Major rewrite.
+0.5.0
+	- Not backwards compatible!
+	- Tasks are defined differently (via module instead of inheritance).
+	- Some configuration options have changed or removed completely.
+	- Configuration options are specified differently as according to ConfigurationDsl v0.3.0.
+	- Removed all reporting/statstics gathering code.  Use external tools if you want that functionality (.e.g. Nagios and/or Statsd)
+	- Added support to run in fibered mode (requires EventMachine).
+
 0.4.0
- - Internal Onespot release.
+	- Internal Onespot release.
+
 0.3.0
- - Internal Onespot release.
+	- Internal Onespot release.
+
 0.2.0
- - Refactored
+	- Refactored
+
 0.1.0
- - Initial version
+	- Initial version

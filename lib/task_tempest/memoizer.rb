@@ -1,15 +1,3 @@
-require "digest"
-
-class Object #:nodoc:
-  
-  unless method_defined?(:singleton_class)
-    def singleton_class
-      class << self; self; end
-    end
-  end
-  
-end
-
 module TaskTempest
   module Memoizer #:nodoc:
     

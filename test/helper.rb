@@ -33,7 +33,7 @@ class Test::Unit::TestCase
       end
     end
     
-    @task_class = Class.new(TaskTempest::Task)
+    @task_class = Class.new.tap{ |c| c.extend(TaskTempest::Task) }
   end
   
 end
