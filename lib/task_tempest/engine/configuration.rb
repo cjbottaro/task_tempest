@@ -10,26 +10,17 @@ module TaskTempest #:nodoc:
     #       ...
     #     end
     #   end
-    # Some configuration options take a block that is lazily evaluated (in the scope of the tempest class)
-    # to determine the value of the option.
+    # If you give a configuration option a block, it will be lazily evaluated (in the scope of the tempest class).
     #   class MyTempest < TaskTempest::Engine
     #     configure do
     #       name{ self.name }
     #       root{ Rails.root }
-    #       before_initialize do
+    #       before_initialize proc {
     #         require "config/environment" # load Rails
-    #       end
+    #       }
     #     end
     #   end
-    # Some configuration options take a block that _is_ the value of the option.
-    #   class MyTempest < TaskTempest::Engine
-    #     configure do
-    #       log_Format do |severity, time, progname, message|
-    #         time = time.strftime("%Y/%m/%d %H:%M:%S")
-    #         sprintf("%s [%s] %s\n", time, severity, message)
-    #       end
-    #     end
-    #   end
+    # +name+ and +root+ are given blocks which will be evaluated when the configuration option is used.  +before_initialize+ takes a proc as an argument, no lazy evaluation occurs.
     module Configuration
     
       ###########

@@ -2,19 +2,13 @@ module TaskTempest #:nodoc:
   module Task
     
     # Configuring a Task is done much the same way as configuring a TaskTempest::Engine, with a DSL.
-    #   class CalculatePi < TaskTempest::Task
-    #     configure do
+    #   class CalculatePi
+    #     extend TaskTempest::Task
+    #     configure_task do
     #       timeout 5
-    #       report_stats do
-    #         { :timeouts => 0 }
-    #       end
-    #       after_timeout do |task, exception|
-    #         task.logger.error "I took too long and got this: #{exception} !"
-    #         task.record{ |stats| stats[:timeouts] += 1 }
-    #       end
-    #       report :every => 120 do |stats, logger|
-    #         logger.warn "#{stats[:timeouts]} CalculatePi tasks have timed out in the past 120 seconds."
-    #       end
+    #       after_timeout proc {
+    #         task_logger.error "I took too long!"
+    #       }
     #     end
     #     ...
     #   end
@@ -25,15 +19,18 @@ module TaskTempest #:nodoc:
         seconds
       end
 
+      # Specify which method to invoke to process the task.
       def process_method(name = :process)
         name.to_sym
       end
 
+      # Specify a logger instead of using the default task logger.
       def logger(logger = nil)
         logger
       end
       
       # Define a callback to be called after a task finishes successfully.
+      #   proc{ ... }
       def after_success(callback = nil)
         @after_success ||= []
         @after_success << callback if callback
@@ -41,6 +38,7 @@ module TaskTempest #:nodoc:
       end
       
       # Define a callback to be called after a task fails (i.e. uncaught exception).
+      #   proc{ |exception| ... }
       def after_failure(callback = nil)
         @after_failure ||= []
         @after_failure << callback if callback
@@ -48,6 +46,7 @@ module TaskTempest #:nodoc:
       end
       
       # Define a callback to be called after a task times out.  +exception+ is the timeout exception.
+      #   proc{ ... }
       def after_timeout(callback = nil)
         @after_timeout ||= []
         @after_timeout << callback if callback
