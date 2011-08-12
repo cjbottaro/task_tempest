@@ -1,27 +1,32 @@
+# encoding: utf-8
+
 require 'rubygems'
+require 'bundler'
+begin
+  Bundler.setup(:default, :development)
+rescue Bundler::BundlerError => e
+  $stderr.puts e.message
+  $stderr.puts "Run `bundle install` to install missing gems"
+  exit e.status_code
+end
 require 'rake'
 
-begin
-  require 'jeweler'
-  Jeweler::Tasks.new do |gem|
-    gem.name = "task_tempest"
-    gem.summary = %Q{Framework for creating threaded asychronous job processors.}
-    gem.description = %Q{Just another background job processor for Ruby.}
-    gem.email = "cjbottaro@alumni.cs.utexas.edu"
-    gem.homepage = "http://github.com/cjbottaro/task_tempest"
-    gem.authors = ["Christopher J. Bottaro"]
-    gem.add_dependency 'col', "~> 1.0"
-    gem.add_dependency 'configuration_dsl', "~> 0.0"
-    gem.add_dependency 'thread_storm', "~> 0.7.0"
-    # gem.add_development_dependency "thoughtbot-shoulda", ">= 0"
-    # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
-  end
-  Jeweler::GemcutterTasks.new
-rescue LoadError
-  puts "Jeweler (or a dependency) not available. Install it with: gem install jeweler"
+require 'jeweler'
+Jeweler::Tasks.new do |gem|
+  # gem is a Gem::Specification... see http://docs.rubygems.org/read/chapter/20 for more options
+  gem.name = "task_tempest"
+  gem.homepage = "http://github.com/cjbottaro/task_tempest"
+  gem.license = "MIT"
+  gem.summary = %Q{Framework for creating threaded (or fibered!) asychronous job processors.}
+  gem.description = %Q{Just another background job processor for Ruby.}
+  gem.email = "cjbottaro@alumni.cs.utexas.edu"
+  gem.authors = ["Christopher J. Bottaro"]
+  # dependencies defined in Gemfile
 end
+Jeweler::RubygemsDotOrgTasks.new
 
 require 'rake/testtask'
+
 Rake::TestTask.new(:test) do |test|
   test.libs << 'lib' << 'test'
   test.pattern = 'test/**/test_*.rb'
@@ -37,6 +42,17 @@ end
 
 task :default => :test
 
+require 'rspec/core'
+require 'rspec/core/rake_task'
+RSpec::Core::RakeTask.new(:spec) do |spec|
+  spec.pattern = FileList['spec/**/*_spec.rb']
+end
+
+RSpec::Core::RakeTask.new(:rcov) do |spec|
+  spec.pattern = 'spec/**/*_spec.rb'
+  spec.rcov = true
+end
+
 require 'rake/rdoctask'
 Rake::RDocTask.new do |rdoc|
   version = File.exist?('VERSION') ? File.read('VERSION') : ""
@@ -45,23 +61,4 @@ Rake::RDocTask.new do |rdoc|
   rdoc.title = "task_tempest #{version}"
   rdoc.rdoc_files.include('README*')
   rdoc.rdoc_files.include('lib/**/*.rb')
-end
-
-namespace :example do
-  
-  desc "Run the example."
-  task :run do
-    `ruby example/my_tempest.rb run`
-  end
-  
-  desc "Fill the example queue."
-  task :fill do
-    require "example/my_tempest"
-    while true
-      r = rand
-      sleep(r)
-      MyTempest.submit([nil, "FibCalc", 25 + rand(8)])
-    end
-  end
-  
 end
