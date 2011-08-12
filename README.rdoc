@@ -4,13 +4,15 @@ Framework for building threaded asynchronous job processors.
 
 == Description
 
-task_tempest basically lets you build glorified loops, reading messages from a queue and dispatching them to classes to handle.  In short, it's just another background job processor for Ruby.
++task_tempest+ basically lets you build glorified loops, reading messages from a queue and dispatching them to classes to handle.  In short, it's just another background job processor for Ruby.
 
-task_tempest is based on the idea of a thread pool; each background job is executed on a thread.  This can achieve high throughput, but your code will need to be threadsafe.
++task_tempest+ is based on the idea of a thread pool; each background job is executed on a thread.  This can achieve high throughput, but your code will need to be threadsafe.
 
-task_tempest is queue agnostic; you can use whatever queue you like, as long as it supports three operations:  enqueue, dequeue and size.
++task_tempest+ can also run in fibered mode in conjunction with EventMachine.  This can achieve high(er?) throughput, but your code will need to be fiber aware.
 
-task_tempest is used in production at {Onespot}[http://www.onespot.com] and processes over 1 million jobs a day.
++task_tempest+ is queue agnostic; you can use whatever queue you like, as long as it supports two operations:  enqueue, dequeue.
+
++task_tempest+ is used in production at {Onespot}[http://www.onespot.com] and processes over 1 million jobs a day.
 
 == Quickstart
 
@@ -22,35 +24,35 @@ Run the code below and both MathTempest.log and MathTempest.task.log will be cre
     def initialize; @array = []; end
     def enqueue(message); @array.push(message); end
     def dequeue; @array.shift; end
-    def size; @array.size; end
   end
 
   class MathTempest < TaskTempest::Engine
     configure do
+      threads 2
       queue MemoryQueue.new
     end
   end
 
-  class Adder < TaskTempest::Task
-    def start(a, b)
+  class Adder
+    extend TaskTempest::Task
+    def self.process(a, b)
       c = a + b
-      logger.info "#{a} + #{b} = #{c}"
+      task_logger.info "#{a} + #{b} = #{c}"
     end
   end
 
   10.times do
     a, b = rand(10), rand(10)
-    task = Adder.new(a, b)
-    MathTempest.submit(task)
+    MathTempest.submit(Adder, a, b)
   end
 
   MathTempest.run
 
 == Queue
 
-The queue object given in the TaskTempest::Engine's +configure+ block must define 3 methods: +enqueue+, +dequeue+ and +size+.
+The queue object given in the TaskTempest::Engine's +configure+ block must define 2 methods: +enqueue+ and +dequeue+.
 
-+task_tempest+ doesn't care what kind of queue you use or what you actually store in it, as long as +dequeue+ returns a _message_ as described here.
++task_tempest+ doesn't care what kind of queue you use or what you actually store in it, as long as +dequeue+ returns a _message_ as described here.  You are responsible for any serialization and deserialization that may be required.
 
 A _message_ is an array with the following format:
 
@@ -68,29 +70,28 @@ If the +task_id+ of a message is +nil+, then +task_tempest+ will automatically a
 
 == Tasks
 
-Messages are dispatched to a task instances to handle.  A task class must inherit from TaskTempest::Task and define a +start+ method.  The start method will be called with the arguments from the message being dispatched.
+Messages are dispatched to a task class to handle.  A task class must extend TaskTempest::Task and define a +process+ method.  The +process+ method will be called with the arguments from the message being dispatched.
 
-  class Averager < TaskTempest::Task
+  class Averager
+    extend TaskTempest::Task
     configure do
       ...
     end
-    def start(*args)
+    def self.process(*args)
       avg = args.inject(0){ |memo, n| memo += n; memo } / args.length
-      logger.info "The average of #{args.inspect} is #{avg}"
+      task_logger.info "The average of #{args.inspect} is #{avg}"
     end
   end
   
-  task = Averager.new(2, 4)
-  MathTempest.submit(task)
+  MathTempest.submit(Averager, 2, 4)
   # Will produce a message like ["9ac4f", "Averager", 2, 4]
-  # And eventually Averager#start(2, 4) will be called.
+  # And eventually Averager.process(2, 4) will be called.
   
-  task = Averager.new(2, 4, 6)
-  MathTempest.submit(task)
+  MathTempest.submit(Averager, 2, 4, 6)
   # Will produce a message like ["b733c", "Averager", 2, 4, 6]
-  # And eventually Averager#start(2, 4, 6) will be called.
+  # And eventually Averager.process(2, 4, 6) will be called.
 
-See TaskTempest::Task::Configuration for what options can be set in a Task's +configure+ block.
+See TaskTempest::Task::Configuration for what options can be set in a task's +configure+ block.
 
 == Logging
 
@@ -100,56 +101,41 @@ The main log shows a high level view of all the tasks that are run (when they st
 
 The task log shows detailed information about each task.  Each line in the task log is prefixed with a task id.  This is so that if you see a task failed in the main log, you can grep for its id in the task log.
 
-Any logging done in a task will be written to the task log.
+Any logging done in a task using +task_logger+ will be written to the task log.
 
 == Callbacks
 
 Each task class can define callbacks for +success+, +failure+, and +timeout+ of a task.
 
-  class Averager < TaskTempest::Task
+  class Averager
+    extend TaskTempest::Task
     configure do
-      after_failure do |task, exception|
+      timeout 1.5
+      after_failure proc { |exception|
         HoptoadNotifier.notify(exception)
-      end
+      }
+      after_timeout proc {
+        task_logger.warn "Crap, I took longer than 1.5 seconds"
+      }
     end
     ...
   end
 
 See TaskTempest::Task::Configuration for the names of each callback and arguments yielded.
 
-== Reporting
+== EventMachine + Fibers
 
-+task_tempest+ collects statistics over time and allows you define callbacks to be run periodically so you can do something with those statistics.
+The +fibers+ option puts +task_tempest+ into fibered mode and also defines the size of the fiber pool.
 
-  class MathTempest < TaskTempest::Engine
+  class FiberedTempest << TaskTempest::Engine
     configure do
-      report :every => 60 do |stats, logger|
-        logger.info "I've collected these stats in the past 60 seconds:  #{stats.inspect}"
-      end
-    end
-  end
-
-Tasks don't collect statistics on their own, but you can using callbacks in conjunction with task reporting.
-
-  class Averager < TaskTempest::Task
-    configure do
-      timeout 1
-      report_stats do
-        { :success => 0,
-          :failure => 0,
-          :timeout => 0}
-      end
-      after_success{ |task| task.record{ |stats| stats[:success] += 1 } }
-      after_failure{ |task| task.record{ |stats| stats[:failure] += 1 } }
-      after_timeout{ |task| task.record{ |stats| stats[:timeout] += 1 } }
-      report :every => 120 do |stats, logger|
-        logger.info "Averager collected the following stats over the last 2 minutes: #{stats.inspect}"
-      end
+      fibers 5
+      ...
     end
     ...
   end
-  
-+report_stats+ defines what you want to collect and how to reset them after each report interval.  TaskTempest::Task#record yields the stats so you can access them in the task's callbacks or TaskTempest::Task#start method.  Finally +report+ defines a callback and how often to call it.  The stats defined by +report_stats+ and the main logger are yielded to the callback.
+
+Now when +FiberedTempest.run+ is called, The EventMachine reactor will be started and each task will be dispatched in a fiber.
 
 == Daemonizing
 
@@ -181,9 +167,9 @@ You can load the Rails environment however you like, but if you choose to load i
   class MathTempest < TaskTempest::Engine
     configure do
       root{ Rails.root }
-      after_initialize do
+      after_initialize proc {
         require "config/environment" # Load Rails.
-      end
+      }
     end
   end
 
