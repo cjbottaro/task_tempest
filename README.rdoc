@@ -74,7 +74,7 @@ Messages are dispatched to a task class to handle.  A task class must extend Tas
 
   class Averager
     extend TaskTempest::Task
-    configure do
+    configure_task do
       ...
     end
     def self.process(*args)
@@ -109,7 +109,7 @@ Each task class can define callbacks for +success+, +failure+, and +timeout+ of 
 
   class Averager
     extend TaskTempest::Task
-    configure do
+    configure_task do
       timeout 1.5
       after_failure proc { |exception|
         HoptoadNotifier.notify(exception)
