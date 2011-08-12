@@ -19,6 +19,12 @@ module TaskTempest #:nodoc:
         seconds
       end
 
+      # Specify which method on the task class to invoke to create a task instance.
+      # If pass_args is true, then the task arguments will be passed to the method.
+      def initialize_method(name = :new, pass_args = false)
+        [name.to_sym, pass_args]
+      end
+
       # Specify which method to invoke to process the task.
       def process_method(name = :process)
         name.to_sym

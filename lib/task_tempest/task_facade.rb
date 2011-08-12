@@ -4,7 +4,7 @@ require "task_tempest/logger_facade"
 
 module TaskTempest
   class TaskFacade
-    attr_reader :id, :task_class, :args, :options, :config, :status, :callback_status, :logger
+    attr_reader :id, :task_class, :task, :args, :options, :config, :status, :callback_status, :logger
 
     DEFAULT_OPTIONS = {
       :id                => nil,
@@ -22,13 +22,14 @@ module TaskTempest
       @status     = "unknown"
       @logger     = LoggerFacade.new(id, task_class, options[:logger])
 
-      # Hack to expose the logger to task_class.
-      if task_class.task_configuration.logger.nil?
-        logger_facade = self.logger
-        task_class.configure_task do
-          logger(logger_facade)
-        end
+      method, pass_args = config.initialize_method
+      if pass_args
+        @task = task_class.send(method, *args)
+      else
+        @task = task_class.send(method)
       end
+
+      @task.instance_variable_set(:@task_logger, config.logger || logger)
     end
 
     def timeout_method
@@ -44,7 +45,7 @@ module TaskTempest
     end
 
     def process
-      with_timeout{ task_class.send(config.process_method, *args) }
+      with_timeout{ task.send(config.process_method, *args) }
     rescue timeout_exception
       handle_timeout
     rescue StandardError => e

@@ -7,10 +7,15 @@ module TaskTempest
     def self.extended(mod)
       mod.extend(ConfigurationDsl)
       mod.configure_with(Configuration, :method => :configure_task, :storage => :task_configuration)
+      mod.send(:include, InstanceMethods)
     end
 
-    def task_logger
-      task_configuration.logger
+    module InstanceMethods
+
+      def task_logger
+        @task_logger
+      end
+
     end
 
   end

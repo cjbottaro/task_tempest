@@ -36,7 +36,7 @@ class TestCallbacks < Test::Unit::TestCase
     
     task_class.class_eval do
       
-      def self.process(n)
+      def process(n)
         case n
         when 1
           nil
@@ -74,7 +74,7 @@ class TestCallbacks < Test::Unit::TestCase
     end
     
     task_class.class_eval do
-      def self.process; end
+      def process; end
     end
     
     tempest = tempest_class.new
