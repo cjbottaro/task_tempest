@@ -26,10 +26,10 @@ class Test::Unit::TestCase
       log_file{ Logger.new("/dev/null") }
       task_log_file{ Logger.new("/dev/null") }
       queue do
-        Class.new(Array) do
+        block_returns(Class.new(Array) do
           alias_method :enqueue, :unshift
           alias_method :dequeue, :pop
-        end.new
+        end.new)
       end
     end
     

@@ -70,7 +70,7 @@ class TestEngine < Test::Unit::TestCase
     end
 
     # Set up some mocks and expectations.
-    mock(tempest.logger).warn("pool executions larger than pool size")
+    mock(tempest.logger).warn("pool executions (7) is larger than pool size (5)")
 
     # Assertion before.
     assert_equal 10, tempest.storm.executions.length
