@@ -2,6 +2,8 @@
 
 gem "col",                "~> 1.0"
 gem "configuration_dsl",  ">= 0.3.0"
+gem "thread_storm",       ">= 0.7.1"
+gem "fiber_storm",        ">= 0.2.0"
 
 # Add dependencies to develop your gem here.
 # Include everything needed to run rake, tests, features, etc.
