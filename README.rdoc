@@ -35,7 +35,7 @@ Run the code below and both MathTempest.log and MathTempest.task.log will be cre
 
   class Adder
     extend TaskTempest::Task
-    def self.process(a, b)
+    def process(a, b)
       c = a + b
       task_logger.info "#{a} + #{b} = #{c}"
     end
@@ -77,7 +77,7 @@ Messages are dispatched to a task class to handle.  A task class must extend Tas
     configure_task do
       ...
     end
-    def self.process(*args)
+    def process(*args)
       avg = args.inject(0){ |memo, n| memo += n; memo } / args.length
       task_logger.info "The average of #{args.inspect} is #{avg}"
     end
