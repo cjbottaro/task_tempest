@@ -13,13 +13,15 @@ class DeadlockTask
   end
   
   @lock = Monitor.new
-  class << self
-    def synchronize(&block)
-      @lock.synchronize(&block)
-    end
+  def self.synchronize(&block)
+    @lock.synchronize(&block)
+  end
+
+  def synchronize(&block)
+    self.class.synchronize(&block)
   end
   
-  def self.process
+  def process
     synchronize{ sleep }
   end
   

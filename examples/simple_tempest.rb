@@ -20,19 +20,15 @@ class SimpleTask
     }
   end
   
-  def self.process(n)
-    new.start(n)
-  end
-
   def conf
     self.class.task_configuration
   end
 
   def logger
-    self.class.task_logger
+    task_logger
   end
 
-  def start(n)
+  def process(n)
     if n < 0.33
       Kernel.sleep(n)
       logger.info "I slept for #{n} seconds!"

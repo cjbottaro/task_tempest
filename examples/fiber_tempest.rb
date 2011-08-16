@@ -20,23 +20,19 @@ class FiberTask
     }
   end
 
-  def self.process(n)
-    new.start(n)
-  end
-
   def conf
     self.class.task_configuration
   end
   
   def logger
-    self.class.task_logger
+    task_logger
   end
 
-  def start(n)
-    if n < 0.33
+  def process(n)
+    if n < 0.5
       FiberStorm.sleep(n)
       logger.info "I slept for #{n} seconds!"
-    elsif n < 0.66
+    elsif n < 0.75
       FiberStorm.sleep(n)
       raise "oops"
     else
