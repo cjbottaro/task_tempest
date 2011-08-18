@@ -12,6 +12,8 @@ module TaskTempest #:nodoc:
     #     end
     #     ...
     #   end
+    #
+    # Note that all callbacks are executed in the context of a task instance.
     module Configuration
       
       # Maximum amount of time a task should be a allowed to run before it is abored.
@@ -43,7 +45,7 @@ module TaskTempest #:nodoc:
         @after_success
       end
       
-      # Define a callback to be called after a task fails (i.e. uncaught exception).
+      # Define a callback to be called after a task fails (i.e. unhandled exception).
       #   proc{ |exception| ... }
       def after_failure(callback = nil)
         @after_failure ||= []
@@ -51,7 +53,7 @@ module TaskTempest #:nodoc:
         @after_failure
       end
       
-      # Define a callback to be called after a task times out.  +exception+ is the timeout exception.
+      # Define a callback to be called after a task times out.
       #   proc{ ... }
       def after_timeout(callback = nil)
         @after_timeout ||= []
