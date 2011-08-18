@@ -17,8 +17,7 @@ module TaskTempest #:nodoc:
   #     end
   #   end
   #   
-  #   task = Adder.new(1, 2)
-  #   MathHurricane.submit(task)
+  #   MathHurricane.submit(Adder, 1, 2)
   #   MathHurricane.run
   # 
   # See Configuration for what to put in the +configure+ block.
@@ -75,12 +74,13 @@ module TaskTempest #:nodoc:
       !!conf.fibers
     end
 
+    # Returns a memoized instance of the queue.
     def self.queue
       @queue ||= Queue.new(conf.queue)
     end
     
-    # Submit a task to the queue.
-    # +task+ must be a kind of TaskTempest::Task.
+    # Submit a task to the queue. Ex:
+    #   MyTempest.submit(SomeTask, arg1, arg2)
     def self.submit(task_class, *args)
       queue.enqueue(TaskFacade.message(task_class, *args))
     end
@@ -90,7 +90,8 @@ module TaskTempest #:nodoc:
       new.tap{ |me| me.run }
     end
 
-    def self.log_file
+    # conf.log_file massaged a little bit.
+    def self.log_file #:nodoc:
       if Pathname.new(conf.log_file).relative?
         conf.root + "/" + conf.log_file
       else
@@ -98,7 +99,8 @@ module TaskTempest #:nodoc:
       end
     end
 
-    def self.task_log_file
+    # conf.task_log_file massaged a little bit.
+    def self.task_log_file #:nodoc:
       if Pathname.new(conf.task_log_file).relative?
         conf.root + "/" + conf.task_log_file
       else
@@ -161,6 +163,7 @@ module TaskTempest #:nodoc:
       fibered? ? "fiber" : "thread"
     end
 
+    # Returns a memoized instance of the queue.
     def queue
       self.class.queue
     end
@@ -278,8 +281,8 @@ module TaskTempest #:nodoc:
       end
     end
 
-    # Sleep that is aware of what mode we're running.
-    def sleep(n)
+    # Sleep that is aware of what mode we're running in.
+    def sleep(n) #:nodoc:
       if fibered?
         FiberStorm.sleep(n)
       else

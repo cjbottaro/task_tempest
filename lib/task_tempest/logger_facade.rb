@@ -1,5 +1,5 @@
 module TaskTempest
-  class LoggerFacade
+  class LoggerFacade #:nodoc:
     def initialize(id, mod, logger)
       @id     = id
       @name   = mod.name

@@ -3,7 +3,7 @@ require "logger"
 require "task_tempest/logger_facade"
 
 module TaskTempest
-  class TaskFacade
+  class TaskFacade #:nodoc:
     attr_reader :id, :task_class, :task, :args, :options, :config, :status, :callback_status, :logger
 
     DEFAULT_OPTIONS = {
