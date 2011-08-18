@@ -53,17 +53,17 @@ class TestCallbacks < Test::Unit::TestCase
     
     task = tempest.dispatcher.prepare [nil, task_class, 1]
     task.process
-    assert_equal "success", task_class.instance_variable_get("@status")
+    assert_equal "success", task.task.instance_variable_get("@status")
     assert ! task.callback_status
     
     task = tempest.dispatcher.prepare [nil, task_class, 2]
     task.process
-    assert_equal "timeout", task_class.instance_variable_get("@status")
+    assert_equal "timeout", task.task.instance_variable_get("@status")
     assert ! task.callback_status
     
     task = tempest.dispatcher.prepare [nil, task_class, 3]
     task.process
-    assert_equal "failure", task_class.instance_variable_get("@status")
+    assert_equal "failure", task.task.instance_variable_get("@status")
     assert ! task.callback_status
   end
   

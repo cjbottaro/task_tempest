@@ -79,7 +79,7 @@ module TaskTempest
     end
 
     def run_callbacks(callbacks, *args)
-      [callbacks].flatten.each{ |callback| task_class.instance_exec(*args, &callback) }
+      [callbacks].flatten.each{ |callback| task.instance_exec(*args, &callback) }
     rescue StandardError => e
       @callback_status = "failure"
       log_exception(e)
