@@ -7,11 +7,10 @@ task_class = Class.new do
     timeout 0.05
 
     after_success proc {
-      if @success
-        task_logger.info "success"
-      else
-        raise "callback oops"
-      end
+      task_logger.info "success" if @success
+    }
+    after_success proc {
+      raise "callback oops" unless @success
     }
 
     after_failure proc { |e|

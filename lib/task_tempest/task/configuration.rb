@@ -13,7 +13,7 @@ module TaskTempest #:nodoc:
     #     ...
     #   end
     #
-    # Note that all callbacks are executed in the context of a task instance.
+    # Note that all callbacks are executed in the context of a task instance.  Also, if multiple callbacks are registered, they will be executed in the order they were registered in.
     module Configuration
       
       # Maximum amount of time a task should be a allowed to run before it is abored.
